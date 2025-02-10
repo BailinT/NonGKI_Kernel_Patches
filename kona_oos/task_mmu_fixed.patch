@@ -1,5 +1,5 @@
---- fs/proc/task_mmu.c	2025-02-10 21:31:19.488411000 +0800
-+++ fs/proc/task_mmu.c.orig	2025-02-10 21:24:57.428345145 +0800
+--- a/fs/proc/task_mmu.c	2025-02-10 21:31:19.488411000 +0800
++++ b/fs/proc/task_mmu.c	2025-02-10 21:24:57.428345145 +0800
 @@ -21,6 +21,9 @@
  #include <linux/pkeys.h>
  #include <linux/mm_inline.h>
