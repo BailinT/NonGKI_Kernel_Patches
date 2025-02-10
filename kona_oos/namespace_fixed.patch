@@ -1,5 +1,5 @@
---- fs/namespace.c	2025-02-10 21:31:19.487411000 +0800
-+++ fs/namespace.c.orig	2025-02-10 21:24:04.757773190 +0800
+--- a/fs/namespace.c	2025-02-10 21:31:19.487411000 +0800
++++ b/fs/namespace.c	2025-02-10 21:24:04.757773190 +0800
 @@ -26,6 +26,9 @@
  #include <linux/bootmem.h>
  #include <linux/task_work.h>
