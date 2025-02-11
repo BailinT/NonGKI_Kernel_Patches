@@ -1,0 +1,12 @@
+--- a/fs/proc/task_mmu.c	2025-02-11 19:30:21.536290271 +0800
++++ b/fs/proc/task_mmu.c	2025-02-11 19:32:02.525610240 +0800
+@@ -17,6 +17,9 @@
+ #include <linux/shmem_fs.h>
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/uaccess.h>
