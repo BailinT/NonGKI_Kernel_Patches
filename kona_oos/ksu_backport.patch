@@ -1,0 +1,108 @@
+--- a/fs/namespace.c	2025-02-21 22:50:42.803195338 +0800
++++ b/fs/namespace.c	2025-02-21 22:52:01.915277775 +0800
+@@ -1653,6 +1653,36 @@
+ }
+ #endif
+ 
++static int can_umount(const struct path *path, int flags)
++ {
++	 struct mount *mnt = real_mount(path->mnt);
++	 if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
++		 return -EINVAL;
++	 if (!may_mount())
++		 return -EPERM;
++	 if (path->dentry != path->mnt->mnt_root)
++		 return -EINVAL;
++	 if (!check_mnt(mnt))
++		 return -EINVAL;
++	 if (mnt->mnt.mnt_flags & MNT_LOCKED)
++		 return -EINVAL;
++	 if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
++		 return -EPERM;
++	 return 0;
++ }
++
++int path_umount(struct path *path, int flags)
++ {
++	 struct mount *mnt = real_mount(path->mnt);
++	 int ret;
++	 ret = can_umount(path, flags);
++	 if (!ret)
++		 ret = do_umount(mnt, flags);
++	 dput(path->dentry);
++	 mntput_no_expire(mnt);
++	 return ret;
++ }
++
+ /*
+  * Now umount can handle mount points as well as block devices.
+  * This is important for filesystems which use unnamed block devices.
+  
+--- a/include/linux/cred.h	2025-02-21 22:54:25.662015410 +0800
++++ b/include/linux/cred.h	2025-02-21 22:55:44.943092301 +0800
+@@ -258,6 +258,18 @@
+ 	return get_new_cred(nonconst_cred);
+ }
+ 
++
++static inline const struct cred *get_cred_rcu(const struct cred *cred)
++{
++	struct cred *nonconst_cred = (struct cred *) cred;
++	if (!cred)
++		return NULL;
++	if (!atomic_long_inc_not_zero(&nonconst_cred->usage))
++		return NULL;
++	validate_creds(cred);
++	return cred;
++}
++
+ /**
+  * put_cred - Release a reference to a set of credentials
+  * @cred: The credentials to release
+  
+--- a/kernel/cred.c	2025-02-21 22:57:16.588269221 +0800
++++ b/kernel/cred.c.	2025-02-21 22:57:48.876581073 +0800
+@@ -197,7 +197,7 @@
+ 	do {
+ 		cred = __task_cred((task));
+ 		BUG_ON(!cred);
+-	} while (!atomic_inc_not_zero(&((struct cred *)cred)->usage));
++	} while (!get_cred_rcu(cred));
+ 
+ 	rcu_read_unlock();
+ 	return cred;
+ 	
+--- a/include/linux/uaccess.h	2025-02-21 22:59:17.888749103 +0800
++++ b/include/linux/uaccess.h	2025-02-21 23:00:27.240461298 +0800
+@@ -348,8 +348,8 @@
+ extern long notrace __probe_user_write(void __user *dst, const void *src, size_t size);
+ 
+ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
+-extern long strncpy_from_unsafe_user(char *dst, const void __user *unsafe_addr,
+-				     long count);
++long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
++		long count);
+ extern long strnlen_unsafe_user(const void __user *unsafe_addr, long count);
+ 
+ /**
+ 
+--- a/mm/maccess.c	2025-02-21 22:59:50.384092464 +0800
++++ b/mm/maccess.c	2025-02-21 23:01:36.130003440 +0800
+@@ -181,7 +181,7 @@
+ }
+ 
+ /**
+- * strncpy_from_unsafe_user: - Copy a NUL terminated string from unsafe user
++ * strncpy_from_user_nofault: - Copy a NUL terminated string from unsafe user
+  *				address.
+  * @dst:   Destination address, in kernel space.  This buffer must be at
+  *         least @count bytes long.
+@@ -198,7 +198,7 @@
+  * If @count is smaller than the length of the string, copies @count-1 bytes,
+  * sets the last byte of @dst buffer to NUL and returns @count.
+  */
+-long strncpy_from_unsafe_user(char *dst, const void __user *unsafe_addr,
++long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
+ 			      long count)
+ {
+ 	mm_segment_t old_fs = get_fs();
