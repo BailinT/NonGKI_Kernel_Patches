@@ -1,0 +1,65 @@
+--- a/fs/dcache.c	2025-02-22 11:17:26.272627541 +0000
++++ b/fs/dcache.c	2025-02-22 12:02:48.985091180 +0000
+@@ -2256,6 +2256,11 @@
+ 			continue;
+ 		if (dentry_cmp(dentry, str, hashlen_len(hashlen)) != 0)
+ 			continue;
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++		if (dentry->d_inode && unlikely(dentry->d_inode->i_state & INODE_STATE_SUS_PATH) && likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC)) {
++			continue;
++		}
++#endif
+ 		*seqp = seq;
+ 		return dentry;
+ 	}
+
+--- a/fs/proc/cmdline.c	2025-02-22 11:17:45.952634354 +0000
++++ b/fs/proc/cmdline.c	2025-02-22 12:01:06.225097539 +0000
+@@ -7,6 +7,10 @@
+ #include <asm/setup.h>
+ #endif
+ 
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
++#endif
++
+ #ifdef CONFIG_INITRAMFS_IGNORE_SKIP_FLAG
+ #define INITRAMFS_STR_FIND "skip_initramf"
+ #define INITRAMFS_STR_REPLACE "want_initramf"
+@@ -29,6 +33,12 @@
+ 
+ static int cmdline_proc_show(struct seq_file *m, void *v)
+ {
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	if (!susfs_spoof_cmdline_or_bootconfig(m)) {
++		seq_putc(m, '\n');
++		return 0;
++	}
++#endif
+ #ifdef CONFIG_INITRAMFS_IGNORE_SKIP_FLAG
+ 	seq_printf(m, "%s\n", proc_command_line);
+ #else
+
+--- a/kernel/sys.c	2025-02-22 11:18:04.613039788 +0000
++++ b/kernel/sys.c	2025-02-22 12:08:31.794105658 +0000
+@@ -1204,6 +1204,10 @@
+ #endif
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++extern void susfs_spoof_uname(struct new_utsname* tmp);
++#endif
++
+ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+ {
+ 	struct new_utsname tmp;
+@@ -1212,6 +1216,9 @@
+ 
+ 	down_read(&uts_sem);
+ 	memcpy(&tmp, utsname(), sizeof(tmp));
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++	susfs_spoof_uname(&tmp);
++#endif
+ 	up_read(&uts_sem);
+ 
+ 	rcu_read_lock();
