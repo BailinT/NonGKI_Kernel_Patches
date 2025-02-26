@@ -18,12 +18,12 @@ index ac59664eaecf..bdd585e1d2cc 100644
  			      struct user_arg_ptr envp,
  			      int flags)
  {
-+   #ifdef CONFIG_KSU
++#ifdef CONFIG_KSU
 +	if (unlikely(ksu_execveat_hook))
 +		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
 +	else
 +		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
-+   #endif
++#endif
  	return __do_execve_file(fd, filename, argv, envp, flags, NULL);
  }
  
@@ -46,9 +46,9 @@ index 2ff887661237..e758d7db7663 100644
 @@ -370,6 +373,8 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
  	int res;
  	unsigned int lookup_flags = LOOKUP_FOLLOW;
-+   #ifdef CONFIG_KSU
++#ifdef CONFIG_KSU
 +	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-+   #endif
++#endif
 +
  	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
  		return -EINVAL;
@@ -69,10 +69,10 @@ index 650fc7e0f3a6..55be193913b6 100644
  ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
  {
  	ssize_t ret;
-+   #ifdef CONFIG_KSU 
++#ifdef CONFIG_KSU 
 +	if (unlikely(ksu_vfs_read_hook))
 +		ksu_handle_vfs_read(&file, &buf, &count, &pos);
-+   #endif
++#endif
 +
  	if (!(file->f_mode & FMODE_READ))
  		return -EBADF;
@@ -96,9 +96,9 @@ index 068fdbcc9e26..5348b7bb9db2 100644
 @@ -94,6 +96,8 @@ int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
  	int error = -EINVAL;
  	unsigned int lookup_flags = 0;
-+   #ifdef CONFIG_KSU 
++#ifdef CONFIG_KSU 
 +	ksu_handle_stat(&dfd, &filename, &flag);
-+   #endif
++#endif
 +
  	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
  		      AT_EMPTY_PATH)) != 0)
@@ -121,10 +121,10 @@ index 45306f9ef247..815091ebfca4 100755
  			       unsigned int type, unsigned int code, int value)
  {
 	int disposition = input_get_disposition(dev, type, code, &value);
-+   #ifdef CONFIG_KSU
++#ifdef CONFIG_KSU
 +	if (unlikely(ksu_input_hook))
 +		ksu_handle_input_handle_event(&type, &code, &value);
-+   #endif
++#endif
  
  	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
  		add_input_randomness(type, code, value);
