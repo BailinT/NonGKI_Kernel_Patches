@@ -1,0 +1,38 @@
+--- a/fs/proc/cmdline.c	2025-02-26 10:23:26.000000000 +0800
++++ b/fs/proc/cmdline.c	2025-02-26 10:29:34.836996480 +0800
+@@ -4,6 +4,10 @@
+ #include <linux/seq_file.h>
+ #include <asm/setup.h>
+ 
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
++#endif
++
+ static char new_command_line[COMMAND_LINE_SIZE];
+ 
+ static int cmdline_proc_show(struct seq_file *m, void *v)
+@@ -10,4 +14,10 @@
+ {
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	if (!susfs_spoof_cmdline_or_bootconfig(m)) {
++		seq_putc(m, '\n');
++		return 0;
++	}
++#endif
+ 	seq_printf(m, "%s\n", new_command_line);
+ 	return 0;
+ }
+ 
+--- a/fs/proc/task_mmu.c	2025-02-26 10:23:32.000000000 +0800
++++ b/fs/proc/task_mmu.c	2025-02-26 10:30:05.656996468 +0800
+@@ -17,6 +17,9 @@
+ #include <linux/shmem_fs.h>
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/uaccess.h>
+ 
