@@ -79,19 +79,20 @@
  		return -EBADF;
  	if (!(file->f_mode & FMODE_CAN_READ))
  	
---- a/fs/stat.c	2025-02-26 20:05:58.502437008 +0800
-+++ b/fs/stat.c	2025-02-26 20:05:27.101278600 +0800
-@@ -87,6 +87,9 @@
+--- a/fs/stat.c	2025-02-26 21:19:35.961646900 +0800
++++ b/fs/stat.c	2025-02-26 21:21:04.600478150 +0800
+@@ -87,6 +87,10 @@
  }
  EXPORT_SYMBOL(vfs_fstat);
  
 +#ifdef CONFIG_KSU
 +extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
 +#endif
- 
++
  int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,
  		int flag)
-@@ -95,6 +98,10 @@
+ {
+@@ -94,6 +98,10 @@
  	int error = -EINVAL;
  	unsigned int lookup_flags = 0;
  
