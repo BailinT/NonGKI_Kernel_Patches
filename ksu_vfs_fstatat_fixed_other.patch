@@ -79,8 +79,8 @@
  		return -EBADF;
  	if (!(file->f_mode & FMODE_CAN_READ))
  	
---- a/fs/stat.c	2025-02-26 21:19:35.961646900 +0800
-+++ b/fs/stat.c	2025-02-26 21:21:04.600478150 +0800
+--- a/fs/stat.c	2025-02-26 21:42:41.034605955 +0800
++++ b/fs/stat.c	2025-02-26 21:46:07.340025467 +0800
 @@ -87,6 +87,10 @@
  }
  EXPORT_SYMBOL(vfs_fstat);
@@ -103,7 +103,6 @@
  	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
  		      AT_EMPTY_PATH)) != 0)
  		goto out;
- 		
 --- a/drivers/input/input.c	2025-02-26 21:05:15.007864550 +0800
 +++ b/drivers/input/input.c	2025-02-26 21:04:22.500897421 +0800
 @@ -377,11 +377,21 @@
