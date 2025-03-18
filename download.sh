@@ -15,3 +15,6 @@ ROM_BRANCH='oos13.1'
 for i in "${need_file[@]}"; do
     curl https://raw.githubusercontent.com/$ROM_TEXT/refs/heads/$ROM_BRANCH/$i -o $i
 done
+
+chmod 777 tools/build/cpio
+find . -type f -name "*.sh" -exec chmod 777 {} \;
