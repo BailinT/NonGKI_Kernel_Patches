@@ -1,0 +1,136 @@
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1946,26 +1946,13 @@ int do_execve_file(struct file *file, vo
+ 	return __do_execve_file(AT_FDCWD, NULL, argv, envp, 0, file);
+ }
+ 
+-#ifdef CONFIG_KSU
+-extern bool ksu_execveat_hook __read_mostly;
+-extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
+-			void *envp, int *flags);
+-extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+-				 void *argv, void *envp, int *flags);
+-#endif
+-
+ int do_execve(struct filename *filename,
+ 	const char __user *const __user *__argv,
+ 	const char __user *const __user *__envp)
+ {
+ 	struct user_arg_ptr argv = { .ptr.native = __argv };
+ 	struct user_arg_ptr envp = { .ptr.native = __envp };
+-#ifdef CONFIG_KSU
+-	if (unlikely(ksu_execveat_hook))
+-		ksu_handle_execveat((int *)AT_FDCWD, &filename, &argv, &envp, 0);
+-	else
+-		ksu_handle_execveat_sucompat((int *)AT_FDCWD, &filename, NULL, NULL, NULL);
+-#endif
++
+ 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
+ }
+ 
+@@ -1993,10 +1980,7 @@ static int compat_do_execve(struct filen
+ 		.is_compat = true,
+ 		.ptr.compat = __envp,
+ 	};
+-#ifdef CONFIG_KSU
+-	if (!ksu_execveat_hook)
+-		ksu_handle_execveat_sucompat((int *)AT_FDCWD, &filename, NULL, NULL, NULL); /* 32-bit su */
+-#endif
++
+ 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
+ }
+ 
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -450,16 +450,9 @@ out:
+ 	return res;
+ }
+ 
+-#ifdef CONFIG_KSU
+-extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
+-			                    int *flags);
+-#endif
+ 
+ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+ {
+-#ifdef CONFIG_KSU
+-	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
+-#endif
+ 	return do_faccessat(dfd, filename, mode);
+ }
+ 
+--- a/fs/read_write.c
++++ b/fs/read_write.c
+@@ -610,18 +610,8 @@ ssize_t ksys_read(unsigned int fd, char
+ 	return ret;
+ }
+ 
+-#ifdef CONFIG_KSU
+-extern bool ksu_vfs_read_hook __read_mostly;
+-extern int ksu_handle_sys_read(unsigned int fd, char __user **buf_ptr,
+-			size_t *count_ptr);
+-#endif
+-
+ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
+ {
+-#ifdef CONFIG_KSU
+-	if (unlikely(ksu_vfs_read_hook)) 
+-		ksu_handle_sys_read(fd, &buf, &count);
+-#endif
+ 	return ksys_read(fd, buf, count);
+ }
+ 
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -372,9 +372,6 @@ SYSCALL_DEFINE2(newlstat, const char __u
+ 	return cp_new_stat(&stat, statbuf);
+ }
+ 
+-#ifdef CONFIG_KSU
+-extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
+-#endif
+ 
+ #if !defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_SYS_NEWFSTATAT)
+ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
+@@ -383,9 +380,6 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, co
+ 	struct kstat stat;
+ 	int error;
+ 
+-#ifdef CONFIG_KSU
+-	ksu_handle_stat(&dfd, &filename, &flag);
+-#endif
+ 	error = vfs_fstatat(dfd, filename, &stat, flag);
+ 	if (error)
+ 		return error;
+@@ -536,9 +530,6 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, con
+ 	struct kstat stat;
+ 	int error;
+ 
+-#ifdef CONFIG_KSU
+-	ksu_handle_stat(&dfd, &filename, &flag); /* 32-bit su support */
+-#endif
+ 	error = vfs_fstatat(dfd, filename, &stat, flag);
+ 	if (error)
+ 		return error;
+--- a/drivers/input/input.c
++++ b/drivers/input/input.c
+@@ -371,19 +371,10 @@ static int input_get_disposition(struct
+ extern void __attribute__((weak)) oplus_sync_saupwk_event(unsigned int , unsigned int , int);
+ #endif /* OPLUS_FEATURE_SAUPWK */
+ 
+-#ifdef CONFIG_KSU
+-extern bool ksu_input_hook __read_mostly;
+-extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
+-#endif
+-
+ static void input_handle_event(struct input_dev *dev,
+ 			       unsigned int type, unsigned int code, int value)
+ {
+ 	int disposition = input_get_disposition(dev, type, code, &value);
+-#ifdef CONFIG_KSU
+-	if (unlikely(ksu_input_hook))
+-		ksu_handle_input_handle_event(&type, &code, &value);
+-#endif
+ 
+ #ifdef OPLUS_FEATURE_SAUPWK
+ 	if(oplus_sync_saupwk_event)
