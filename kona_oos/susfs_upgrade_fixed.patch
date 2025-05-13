@@ -1,0 +1,24 @@
+--- include/linux/sched.h	2025-05-13 10:48:23.561112983 +0800
++++ include/linux/sched.h.orig	2025-05-13 10:54:46.095049089 +0800
+@@ -1677,11 +1677,7 @@
+ #else
+ 	ANDROID_KABI_RESERVE(7);
+ #endif
+-#ifdef CONFIG_KSU_SUSFS
+-	ANDROID_KABI_USE(8, u64 susfs_last_fake_mnt_id);
+-#else
+ 	ANDROID_KABI_RESERVE(8);
+-#endif
+ 
+ 	/*
+ 	 * New fields for task_struct should be added above here, so that
+@@ -1690,9 +1686,6 @@
+ #if defined(CONFIG_KSU_SUSFS) && !defined(ANDROID_KABI_RESERVE)
+ 	u64 susfs_task_state;
+ #endif
+-#if defined(CONFIG_KSU_SUSFS) && !defined(ANDROID_KABI_RESERVE)
+-	u64 susfs_last_fake_mnt_id;
+-#endif
+ 	randomized_struct_fields_end
+ 
+ 	/* CPU-specific state of this task: */
