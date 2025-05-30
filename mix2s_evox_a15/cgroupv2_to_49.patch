@@ -1,21 +1,6 @@
-diff --git a/../evox_a15_mix2s_bak/.git/index b/./.git/index
-index ff0b0826c..643919e05 100644
-Binary files a/../evox_a15_mix2s_bak/.git/index and b/./.git/index differ
-diff --git a/./.vscode/settings.json b/./.vscode/settings.json
-new file mode 100644
-index 000000000..cc134d0ef
---- /dev/null
-+++ b/./.vscode/settings.json
-@@ -0,0 +1,5 @@
-+{
-+    "files.associations": {
-+        "cstdlib": "c"
-+    }
-+}
-\ No newline at end of file
-diff --git a/../evox_a15_mix2s_bak/Documentation/cgroup-v2.txt b/./Documentation/cgroup-v2.txt
+diff --git a/./Documentation/cgroup-v2.txt b/./Documentation/cgroup-v2.txt
 index 73950fdea..0456c7fe5 100644
---- a/../evox_a15_mix2s_bak/Documentation/cgroup-v2.txt
+--- a/./Documentation/cgroup-v2.txt
 +++ b/./Documentation/cgroup-v2.txt
 @@ -16,7 +16,9 @@ CONTENTS
    1-2. What is cgroup?
@@ -379,9 +364,9 @@ index 73950fdea..0456c7fe5 100644
  
  - The "tasks" file is removed and "cgroup.procs" is not sorted.
  
-diff --git a/../evox_a15_mix2s_bak/Documentation/kernel-parameters.txt b/./Documentation/kernel-parameters.txt
+diff --git a/./Documentation/kernel-parameters.txt b/./Documentation/kernel-parameters.txt
 index a66de7db0..9afba613a 100644
---- a/../evox_a15_mix2s_bak/Documentation/kernel-parameters.txt
+--- a/./Documentation/kernel-parameters.txt
 +++ b/./Documentation/kernel-parameters.txt
 @@ -692,10 +692,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
  			Specifying "pressure" disables per-cgroup pressure
@@ -403,9 +388,9 @@ index a66de7db0..9afba613a 100644
 diff --git a/./all.patch b/./all.patch
 new file mode 100644
 index 000000000..32b7cd060
-diff --git a/../evox_a15_mix2s_bak/fs/kernfs/mount.c b/./fs/kernfs/mount.c
+diff --git a/./fs/kernfs/mount.c b/./fs/kernfs/mount.c
 index d5b149a45..9bd669d07 100644
---- a/../evox_a15_mix2s_bak/fs/kernfs/mount.c
+--- a/./fs/kernfs/mount.c
 +++ b/./fs/kernfs/mount.c
 @@ -123,8 +123,10 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
  		return dentry;
@@ -419,9 +404,9 @@ index d5b149a45..9bd669d07 100644
  
  	do {
  		struct dentry *dtmp;
-diff --git a/../evox_a15_mix2s_bak/include/linux/cgroup-defs.h b/./include/linux/cgroup-defs.h
+diff --git a/./include/linux/cgroup-defs.h b/./include/linux/cgroup-defs.h
 index 35a28e4fb..e6bf1f737 100644
---- a/../evox_a15_mix2s_bak/include/linux/cgroup-defs.h
+--- a/./include/linux/cgroup-defs.h
 +++ b/./include/linux/cgroup-defs.h
 @@ -13,6 +13,7 @@
  #include <linux/wait.h>
@@ -652,9 +637,9 @@ index 35a28e4fb..e6bf1f737 100644
  	/*
  	 * If %false, this subsystem is properly hierarchical -
  	 * configuration, resource accounting and restriction on a parent
-diff --git a/../evox_a15_mix2s_bak/include/linux/cgroup.h b/./include/linux/cgroup.h
+diff --git a/./include/linux/cgroup.h b/./include/linux/cgroup.h
 index 4e93ff0e4..efdcda891 100755
---- a/../evox_a15_mix2s_bak/include/linux/cgroup.h
+--- a/./include/linux/cgroup.h
 +++ b/./include/linux/cgroup.h
 @@ -22,6 +22,7 @@
  #include <linux/ns_common.h>
@@ -860,9 +845,9 @@ index 000000000..e94290b29
 +		     enum rdmacg_resource_type index);
 +#endif	/* CONFIG_CGROUP_RDMA */
 +#endif	/* _CGROUP_RDMA_H */
-diff --git a/../evox_a15_mix2s_bak/include/linux/cgroup_subsys.h b/./include/linux/cgroup_subsys.h
+diff --git a/./include/linux/cgroup_subsys.h b/./include/linux/cgroup_subsys.h
 index 7f4a2a5a2..ff4cad3a2 100644
---- a/../evox_a15_mix2s_bak/include/linux/cgroup_subsys.h
+--- a/./include/linux/cgroup_subsys.h
 +++ b/./include/linux/cgroup_subsys.h
 @@ -60,6 +60,10 @@ SUBSYS(hugetlb)
  SUBSYS(pids)
@@ -875,9 +860,9 @@ index 7f4a2a5a2..ff4cad3a2 100644
  /*
   * The following subsystems are not supported on the default hierarchy.
   */
-diff --git a/../evox_a15_mix2s_bak/include/linux/cpuset.h b/./include/linux/cpuset.h
+diff --git a/./include/linux/cpuset.h b/./include/linux/cpuset.h
 index d807fa9b2..3cfe2d278 100644
---- a/../evox_a15_mix2s_bak/include/linux/cpuset.h
+--- a/./include/linux/cpuset.h
 +++ b/./include/linux/cpuset.h
 @@ -56,7 +56,7 @@ static inline void cpuset_dec(void)
  extern int cpuset_init(void);
@@ -897,9 +882,9 @@ index d807fa9b2..3cfe2d278 100644
  {
  	partition_sched_domains(1, NULL, NULL);
  }
-diff --git a/../evox_a15_mix2s_bak/include/linux/sched.h b/./include/linux/sched.h
+diff --git a/./include/linux/sched.h b/./include/linux/sched.h
 index a518fbae4..5e8e8a057 100755
---- a/../evox_a15_mix2s_bak/include/linux/sched.h
+--- a/./include/linux/sched.h
 +++ b/./include/linux/sched.h
 @@ -1816,6 +1816,8 @@ struct task_struct {
  #ifdef CONFIG_CGROUPS
@@ -926,9 +911,9 @@ index a518fbae4..5e8e8a057 100755
  
  #define JOBCTL_TRAP_MASK	(JOBCTL_TRAP_STOP | JOBCTL_TRAP_NOTIFY)
  #define JOBCTL_PENDING_MASK	(JOBCTL_STOP_PENDING | JOBCTL_TRAP_MASK)
-diff --git a/../evox_a15_mix2s_bak/init/Kconfig b/./init/Kconfig
+diff --git a/./init/Kconfig b/./init/Kconfig
 index 323bf53b4..c756b2747 100644
---- a/../evox_a15_mix2s_bak/init/Kconfig
+--- a/./init/Kconfig
 +++ b/./init/Kconfig
 @@ -1226,6 +1226,16 @@ config CGROUP_PIDS
  	  since the PIDs limit only affects a process's ability to fork, not to
@@ -964,9 +949,9 @@ index 323bf53b4..c756b2747 100644
  
  	  Say N.
  
-diff --git a/../evox_a15_mix2s_bak/kernel/Makefile b/./kernel/Makefile
+diff --git a/./kernel/Makefile b/./kernel/Makefile
 index 285b8202b..20e9a08bf 100644
---- a/../evox_a15_mix2s_bak/kernel/Makefile
+--- a/./kernel/Makefile
 +++ b/./kernel/Makefile
 @@ -65,10 +65,7 @@ obj-$(CONFIG_KEXEC) += kexec.o
  obj-$(CONFIG_KEXEC_FILE) += kexec_file.o
@@ -2561,12 +2546,12 @@ index 000000000..fc576131f
 +	return 1;
 +}
 +__setup("cgroup_no_v1=", cgroup_no_v1);
-diff --git a/../evox_a15_mix2s_bak/kernel/cgroup.c b/./kernel/cgroup/cgroup.c
+diff --git a/./kernel/cgroup.c b/./kernel/cgroup/cgroup.c
 similarity index 70%
-rename from ../evox_a15_mix2s_bak/kernel/cgroup.c
+rename from ./kernel/cgroup.c
 rename to ./kernel/cgroup/cgroup.c
 index 5c6deb033..70e2a697b 100644
---- a/../evox_a15_mix2s_bak/kernel/cgroup.c
+--- a/./kernel/cgroup.c
 +++ b/./kernel/cgroup/cgroup.c
 @@ -28,15 +28,13 @@
  
@@ -7331,12 +7316,12 @@ index 5c6deb033..70e2a697b 100644
 +}
 +subsys_initcall(cgroup_sysfs_init);
 +#endif /* CONFIG_SYSFS */
-diff --git a/../evox_a15_mix2s_bak/kernel/cpuset.c b/./kernel/cgroup/cpuset.c
+diff --git a/./kernel/cpuset.c b/./kernel/cgroup/cpuset.c
 similarity index 97%
-rename from ../evox_a15_mix2s_bak/kernel/cpuset.c
+rename from ./kernel/cpuset.c
 rename to ./kernel/cgroup/cpuset.c
 index df64cb9ba..4890211f5 100644
---- a/../evox_a15_mix2s_bak/kernel/cpuset.c
+--- a/./kernel/cpuset.c
 +++ b/./kernel/cgroup/cpuset.c
 @@ -298,6 +298,16 @@ static DECLARE_WORK(cpuset_hotplug_work, cpuset_hotplug_workfn);
  
@@ -8274,12 +8259,12 @@ index 000000000..103938f25
 +	if (!applied)
 +		cgroup_file_notify(&cgrp->events_file);
 +}
-diff --git a/../evox_a15_mix2s_bak/kernel/cgroup_freezer.c b/./kernel/cgroup/legacy_freezer.c
+diff --git a/./kernel/cgroup_freezer.c b/./kernel/cgroup/legacy_freezer.c
 similarity index 99%
-rename from ../evox_a15_mix2s_bak/kernel/cgroup_freezer.c
+rename from ./kernel/cgroup_freezer.c
 rename to ./kernel/cgroup/legacy_freezer.c
 index 1b72d56ed..08236798d 100644
---- a/../evox_a15_mix2s_bak/kernel/cgroup_freezer.c
+--- a/./kernel/cgroup_freezer.c
 +++ b/./kernel/cgroup/legacy_freezer.c
 @@ -268,7 +268,7 @@ static void update_if_frozen(struct cgroup_subsys_state *css)
  	rcu_read_unlock();
@@ -8469,12 +8454,12 @@ index 000000000..86e9bbeb5
 +	return 0;
 +}
 +subsys_initcall(cgroup_namespaces_init);
-diff --git a/../evox_a15_mix2s_bak/kernel/cgroup_pids.c b/./kernel/cgroup/pids.c
+diff --git a/./kernel/cgroup_pids.c b/./kernel/cgroup/pids.c
 similarity index 98%
-rename from ../evox_a15_mix2s_bak/kernel/cgroup_pids.c
+rename from ./kernel/cgroup_pids.c
 rename to ./kernel/cgroup/pids.c
 index b8b898e21..6f064cce2 100644
---- a/../evox_a15_mix2s_bak/kernel/cgroup_pids.c
+--- a/./kernel/cgroup_pids.c
 +++ b/./kernel/cgroup/pids.c
 @@ -248,7 +248,7 @@ static void pids_cancel_fork(struct task_struct *task)
  	pids_uncharge(pids, 1);
@@ -9120,9 +9105,9 @@ index 000000000..defad3c5e
 +	.legacy_cftypes	= rdmacg_files,
 +	.dfl_cftypes	= rdmacg_files,
 +};
-diff --git a/../evox_a15_mix2s_bak/kernel/events/core.c b/./kernel/events/core.c
+diff --git a/./kernel/events/core.c b/./kernel/events/core.c
 index 547184b71..ebe2ee8d9 100644
---- a/../evox_a15_mix2s_bak/kernel/events/core.c
+--- a/./kernel/events/core.c
 +++ b/./kernel/events/core.c
 @@ -11458,5 +11458,6 @@ struct cgroup_subsys perf_event_cgrp_subsys = {
  	.css_alloc	= perf_cgroup_css_alloc,
@@ -9131,9 +9116,9 @@ index 547184b71..ebe2ee8d9 100644
 +	.threaded	= true,
  };
  #endif /* CONFIG_CGROUP_PERF */
-diff --git a/../evox_a15_mix2s_bak/kernel/exit.c b/./kernel/exit.c
+diff --git a/./kernel/exit.c b/./kernel/exit.c
 index 09beccfb0..c4f70f0f4 100644
---- a/../evox_a15_mix2s_bak/kernel/exit.c
+--- a/./kernel/exit.c
 +++ b/./kernel/exit.c
 @@ -203,6 +203,7 @@ void release_task(struct task_struct *p)
  	}
@@ -9143,9 +9128,9 @@ index 09beccfb0..c4f70f0f4 100644
  	release_thread(p);
  	call_rcu(&p->rcu, delayed_put_task_struct);
  
-diff --git a/../evox_a15_mix2s_bak/kernel/fork.c b/./kernel/fork.c
+diff --git a/./kernel/fork.c b/./kernel/fork.c
 index 8f7ab491c..49d84e108 100644
---- a/../evox_a15_mix2s_bak/kernel/fork.c
+--- a/./kernel/fork.c
 +++ b/./kernel/fork.c
 @@ -1069,7 +1069,9 @@ static int wait_for_vfork_done(struct task_struct *child,
  	int killed;
@@ -9157,9 +9142,9 @@ index 8f7ab491c..49d84e108 100644
  	freezer_count();
  
  	if (killed) {
-diff --git a/../evox_a15_mix2s_bak/kernel/sched/core.c b/./kernel/sched/core.c
+diff --git a/./kernel/sched/core.c b/./kernel/sched/core.c
 index 6067173d2..247873155 100755
---- a/../evox_a15_mix2s_bak/kernel/sched/core.c
+--- a/./kernel/sched/core.c
 +++ b/./kernel/sched/core.c
 @@ -7970,7 +7970,7 @@ static void cpuset_cpu_active(void)
  		 */
@@ -9179,9 +9164,9 @@ index 6067173d2..247873155 100755
  	} else {
  		num_cpus_frozen++;
  		partition_sched_domains(1, NULL, NULL);
-diff --git a/../evox_a15_mix2s_bak/kernel/signal.c b/./kernel/signal.c
+diff --git a/./kernel/signal.c b/./kernel/signal.c
 index 4d0f34170..3385d30a4 100644
---- a/../evox_a15_mix2s_bak/kernel/signal.c
+--- a/./kernel/signal.c
 +++ b/./kernel/signal.c
 @@ -36,6 +36,7 @@
  #include <linux/compat.h>
@@ -9312,9 +9297,9 @@ index 4d0f34170..3385d30a4 100644
  
  		/*
  		 * Anything else is fatal, maybe with a core dump.
-diff --git a/../evox_a15_mix2s_bak/mm/memcontrol.c b/./mm/memcontrol.c
+diff --git a/./mm/memcontrol.c b/./mm/memcontrol.c
 index b508b47ae..a49cdf33a 100644
---- a/../evox_a15_mix2s_bak/mm/memcontrol.c
+--- a/./mm/memcontrol.c
 +++ b/./mm/memcontrol.c
 @@ -966,7 +966,7 @@ int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
  		struct css_task_iter it;
@@ -9325,9 +9310,9 @@ index b508b47ae..a49cdf33a 100644
  		while (!ret && (task = css_task_iter_next(&it)))
  			ret = fn(task, arg);
  		css_task_iter_end(&it);
-diff --git a/../evox_a15_mix2s_bak/net/core/netclassid_cgroup.c b/./net/core/netclassid_cgroup.c
+diff --git a/./net/core/netclassid_cgroup.c b/./net/core/netclassid_cgroup.c
 index db65b0cdf..dad43d192 100644
---- a/../evox_a15_mix2s_bak/net/core/netclassid_cgroup.c
+--- a/./net/core/netclassid_cgroup.c
 +++ b/./net/core/netclassid_cgroup.c
 @@ -128,7 +128,7 @@ static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
  
