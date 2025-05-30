@@ -6815,6 +6815,23 @@ index 000000000..0ca78a976
 +curl -LSs "$LINK.patch" -o kernel.patch
 +patch -p1 < kernel.patch
 +rm -f kernel.patch
+diff --git a/./include/linux/sched.h b/./include/linux/sched.h
+index a518fbae4..92ffeddef 100755
+--- a/./include/linux/sched.h
++++ b/./include/linux/sched.h
+@@ -994,7 +994,11 @@ struct sched_info {
+ };
+ #endif /* CONFIG_SCHED_INFO */
+ 
+-struct task_delay_info;
++struct task_delay_info{
++	u64 blkio_start;	/* Shared by blkio, swapin */
++	u64 blkio_delay;	/* wait for sync block io completion */
++	u32 blkio_count;	/* total count of the number of sync block */
++};
+ 
+ static inline int sched_info_on(void)
+ {
 diff --git a/./include/uapi/linux/android/binder.h b/./include/uapi/linux/android/binder.h
 index 3558b58da..1af3d7c4e 100755
 --- a/./include/uapi/linux/android/binder.h
