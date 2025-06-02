@@ -373,7 +373,7 @@ index a1fa20f5e..e6e70aa32 100644
  #if IS_ENABLED(CONFIG_CRYPTO_LZ4)
  	"lz4",
  #endif
-@@ -29,6 +32,15 @@ static const char * const backends[] = {
+@@ -29,6 +32,12 @@
  #if IS_ENABLED(CONFIG_CRYPTO_LZ4HC)
  	"lz4hc",
  #endif
