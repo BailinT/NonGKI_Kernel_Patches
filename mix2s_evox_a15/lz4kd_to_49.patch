@@ -1,6 +1,6 @@
-diff --git a/../evox_a15_mix2s_bak/crypto/Kconfig b/./crypto/Kconfig
+diff --git a/./crypto/Kconfig b/./crypto/Kconfig
 index efa1b8ad5..025a30212 100644
---- a/../evox_a15_mix2s_bak/crypto/Kconfig
+--- a/./crypto/Kconfig
 +++ b/./crypto/Kconfig
 @@ -1639,6 +1639,24 @@ config CRYPTO_LZ4
  	help
@@ -27,9 +27,9 @@ index efa1b8ad5..025a30212 100644
  config CRYPTO_LZ4HC
  	tristate "LZ4HC compression algorithm"
  	select CRYPTO_ALGAPI
-diff --git a/../evox_a15_mix2s_bak/crypto/Makefile b/./crypto/Makefile
+diff --git a/./crypto/Makefile b/./crypto/Makefile
 index 8d0309ff6..b8314c7a4 100644
---- a/../evox_a15_mix2s_bak/crypto/Makefile
+--- a/./crypto/Makefile
 +++ b/./crypto/Makefile
 @@ -120,6 +120,8 @@ obj-$(CONFIG_CRYPTO_AUTHENC) += authenc.o authencesn.o
  obj-$(CONFIG_CRYPTO_LZO) += lzo.o
@@ -283,9 +283,9 @@ index 000000000..2f0ce0d6b
 +MODULE_LICENSE("GPL");
 +MODULE_DESCRIPTION("LZ4KD Compression Algorithm");
 +MODULE_ALIAS_CRYPTO("lz4kd");
-diff --git a/../evox_a15_mix2s_bak/drivers/block/zram/Kconfig b/./drivers/block/zram/Kconfig
+diff --git a/./drivers/block/zram/Kconfig b/./drivers/block/zram/Kconfig
 index b52d89eca..16016eae3 100644
---- a/../evox_a15_mix2s_bak/drivers/block/zram/Kconfig
+--- a/./drivers/block/zram/Kconfig
 +++ b/./drivers/block/zram/Kconfig
 @@ -1,7 +1,7 @@
  config ZRAM
@@ -358,9 +358,9 @@ index b52d89eca..16016eae3 100644
  
  config ZRAM_DEDUP
  	bool "Deduplication support for ZRAM data"
-diff --git a/../evox_a15_mix2s_bak/drivers/block/zram/zcomp.c b/./drivers/block/zram/zcomp.c
+diff --git a/./drivers/block/zram/zcomp.c b/./drivers/block/zram/zcomp.c
 index a1fa20f5e..e6e70aa32 100644
---- a/../evox_a15_mix2s_bak/drivers/block/zram/zcomp.c
+--- a/./drivers/block/zram/zcomp.c
 +++ b/./drivers/block/zram/zcomp.c
 @@ -19,7 +19,10 @@
  #include "zcomp.h"
@@ -389,9 +389,9 @@ index a1fa20f5e..e6e70aa32 100644
  #if IS_ENABLED(CONFIG_CRYPTO_842)
  	"842",
  #endif
-diff --git a/../evox_a15_mix2s_bak/drivers/block/zram/zram_drv.c b/./drivers/block/zram/zram_drv.c
+diff --git a/./drivers/block/zram/zram_drv.c b/./drivers/block/zram/zram_drv.c
 index cb16f00f9..64036317f 100644
---- a/../evox_a15_mix2s_bak/drivers/block/zram/zram_drv.c
+--- a/./drivers/block/zram/zram_drv.c
 +++ b/./drivers/block/zram/zram_drv.c
 @@ -41,7 +41,7 @@ static DEFINE_IDR(zram_index_idr);
  static DEFINE_MUTEX(zram_index_mutex);
@@ -1123,65 +1123,9 @@ index 000000000..cef922d1e
 +
 +
 +#endif /* _LZ4KD_H */
-diff --git a/../evox_a15_mix2s_bak/kernel/module.c b/./kernel/module.c
-index f42fbf18c..c9c281950 100644
---- a/../evox_a15_mix2s_bak/kernel/module.c
-+++ b/./kernel/module.c
-@@ -1308,9 +1308,7 @@ static int check_version(Elf_Shdr *sechdrs,
- 	return 1;
- 
- bad_version:
--	pr_warn("%s: disagrees about version of symbol %s\n",
--	       mod->name, symname);
--	return 0;
-+	return 1;
- }
- 
- static inline int check_modstruct_version(Elf_Shdr *sechdrs,
-@@ -3261,13 +3259,26 @@ int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
- 
- /* module_blacklist is a comma-separated list of module names */
- static char *module_blacklist;
-+static char *custom_module_blacklist[] = {
-+#if IS_BUILTIN(CONFIG_CRYPTO_LZO)
-+    "lzo", "lzo_rle",
-+#endif
-+#if IS_BUILTIN(CONFIG_ZRAM)
-+    "zram",
-+#endif
-+#if IS_BUILTIN(CONFIG_ZSMALLOC)
-+    "zsmalloc",
-+#endif
-+};
-+
- static bool blacklisted(char *module_name)
- {
- 	const char *p;
- 	size_t len;
-+	int i;
- 
- 	if (!module_blacklist)
--		return false;
-+		goto custom_blacklist;
- 
- 	for (p = module_blacklist; *p; p += len) {
- 		len = strcspn(p, ",");
-@@ -3276,6 +3287,12 @@ static bool blacklisted(char *module_name)
- 		if (p[len] == ',')
- 			len++;
- 	}
-+
-+custom_blacklist:
-+	for (i = 0; i < ARRAY_SIZE(custom_module_blacklist); i++)
-+		if (!strcmp(module_name, custom_module_blacklist[i]))
-+			return true;
-+
- 	return false;
- }
- core_param(module_blacklist, module_blacklist, charp, 0400);
-diff --git a/../evox_a15_mix2s_bak/lib/Kconfig b/./lib/Kconfig
+diff --git a/./lib/Kconfig b/./lib/Kconfig
 index bf6537799..bc7668b37 100644
---- a/../evox_a15_mix2s_bak/lib/Kconfig
+--- a/./lib/Kconfig
 +++ b/./lib/Kconfig
 @@ -241,6 +241,18 @@ config LZ4HC_COMPRESS
  config LZ4_DECOMPRESS
@@ -1202,9 +1146,9 @@ index bf6537799..bc7668b37 100644
  config ZSTD_COMPRESS
  	select XXHASH
  	tristate
-diff --git a/../evox_a15_mix2s_bak/lib/Makefile b/./lib/Makefile
+diff --git a/./lib/Makefile b/./lib/Makefile
 index 4e807f69e..e52ab9f21 100644
---- a/../evox_a15_mix2s_bak/lib/Makefile
+--- a/./lib/Makefile
 +++ b/./lib/Makefile
 @@ -111,6 +111,10 @@ obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
  obj-$(CONFIG_LZ4_COMPRESS) += lz4/
