@@ -385,9 +385,6 @@ index a66de7db0..9afba613a 100644
  
  	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
  			Format: <string>
-diff --git a/./all.patch b/./all.patch
-new file mode 100644
-index 000000000..32b7cd060
 diff --git a/./fs/kernfs/mount.c b/./fs/kernfs/mount.c
 index d5b149a45..9bd669d07 100644
 --- a/./fs/kernfs/mount.c
