@@ -1,0 +1,1038 @@
+diff --git a/../evox_a15_mix2s_mod/drivers/android/Kconfig b/./drivers/android/Kconfig
+index bb2a5b581..67edcdc09 100644
+--- a/../evox_a15_mix2s_mod/drivers/android/Kconfig
++++ b/./drivers/android/Kconfig
+@@ -54,6 +54,39 @@ config ANDROID_BINDER_IPC_SELFTEST
+ 	  exhaustively with combinations of various buffer sizes and
+ 	  alignments.
+ 
++config ANDROID_SIMPLE_LMK
++	bool "Simple Android Low Memory Killer"
++	depends on !ANDROID_LOW_MEMORY_KILLER && !MEMCG && !PSI
++	---help---
++	  This is a complete low memory killer solution for Android that is
++	  small and simple. Processes are killed according to the priorities
++	  that Android gives them, so that the least important processes are
++	  always killed first. Processes are killed until memory deficits are
++	  satisfied, as observed from direct reclaim and kswapd reclaim
++	  struggling to free up pages, via VM pressure notifications.
++
++if ANDROID_SIMPLE_LMK
++
++config ANDROID_SIMPLE_LMK_MINFREE
++	int "Minimum MiB of memory to free per reclaim"
++	range 8 512
++	default 128
++	help
++	  Simple LMK will try to free at least this much memory per reclaim.
++
++config ANDROID_SIMPLE_LMK_TIMEOUT_MSEC
++	int "Reclaim timeout in milliseconds"
++	range 50 1000
++	default 200
++	help
++	  Simple LMK tries to wait until all of the victims it kills have their
++	  memory freed; however, sometimes victims can take a while to die,
++	  which can block Simple LMK from killing more processes in time when
++	  needed. After the specified timeout elapses, Simple LMK will stop
++	  waiting and make itself available to kill more processes.
++
++endif
++
+ endif # if ANDROID
+ 
+ endmenu
+diff --git a/../evox_a15_mix2s_mod/drivers/android/Makefile b/./drivers/android/Makefile
+index a01254c43..81cc79664 100644
+--- a/../evox_a15_mix2s_mod/drivers/android/Makefile
++++ b/./drivers/android/Makefile
+@@ -2,3 +2,4 @@ ccflags-y += -I$(src)			# needed for trace events
+ 
+ obj-$(CONFIG_ANDROID_BINDER_IPC)	+= binder.o binder_alloc.o
+ obj-$(CONFIG_ANDROID_BINDER_IPC_SELFTEST) += binder_alloc_selftest.o
++obj-$(CONFIG_ANDROID_SIMPLE_LMK)	+= simple_lmk.o
+diff --git a/./drivers/android/simple_lmk.c b/./drivers/android/simple_lmk.c
+new file mode 100644
+index 000000000..56fcd6d03
+--- /dev/null
++++ b/./drivers/android/simple_lmk.c
+@@ -0,0 +1,358 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2019-2023 Sultan Alsawaf <sultan@kerneltoast.com>.
++ */
++
++#define pr_fmt(fmt) "simple_lmk: " fmt
++
++#include <linux/freezer.h>
++#include <linux/kthread.h>
++#include <linux/mm.h>
++#include <linux/moduleparam.h>
++#include <linux/oom.h>
++#include <linux/ratelimit.h>
++#include <linux/sort.h>
++#include <linux/vmpressure.h>
++
++/* The minimum number of pages to free per reclaim */
++#define MIN_FREE_PAGES (CONFIG_ANDROID_SIMPLE_LMK_MINFREE * SZ_1M / PAGE_SIZE)
++
++/* Kill up to this many victims per reclaim */
++#define MAX_VICTIMS 1024
++
++/* Timeout in jiffies for each reclaim */
++#define RECLAIM_EXPIRES msecs_to_jiffies(CONFIG_ANDROID_SIMPLE_LMK_TIMEOUT_MSEC)
++
++struct victim_info {
++	struct task_struct *tsk;
++	struct mm_struct *mm;
++	unsigned long size;
++};
++
++static struct victim_info victims[MAX_VICTIMS] __cacheline_aligned_in_smp;
++static struct task_struct *task_bucket[SHRT_MAX + 1] __cacheline_aligned;
++static DECLARE_WAIT_QUEUE_HEAD(oom_waitq);
++static DECLARE_COMPLETION(reclaim_done);
++static __cacheline_aligned_in_smp DEFINE_RWLOCK(mm_free_lock);
++static int nr_victims;
++static atomic_t needs_reclaim = ATOMIC_INIT(0);
++static atomic_t nr_killed = ATOMIC_INIT(0);
++
++static int victim_cmp(const void *lhs_ptr, const void *rhs_ptr)
++{
++	const struct victim_info *lhs = (typeof(lhs))lhs_ptr;
++	const struct victim_info *rhs = (typeof(rhs))rhs_ptr;
++
++	return rhs->size - lhs->size;
++}
++
++static void victim_swap(void *lhs_ptr, void *rhs_ptr, int size)
++{
++	struct victim_info *lhs = (typeof(lhs))lhs_ptr;
++	struct victim_info *rhs = (typeof(rhs))rhs_ptr;
++
++	swap(*lhs, *rhs);
++}
++
++static unsigned long get_total_mm_pages(struct mm_struct *mm)
++{
++	unsigned long pages = 0;
++	int i;
++
++	for (i = 0; i < NR_MM_COUNTERS; i++)
++		pages += get_mm_counter(mm, i);
++
++	return pages;
++}
++
++static unsigned long find_victims(int *vindex)
++{
++	short i, min_adj = SHRT_MAX, max_adj = 0;
++	unsigned long pages_found = 0;
++	struct task_struct *tsk;
++
++	rcu_read_lock();
++	for_each_process(tsk) {
++		struct signal_struct *sig;
++		short adj;
++
++		/*
++		 * Search for suitable tasks with a positive adj (importance).
++		 * Since only tasks with a positive adj can be targeted, that
++		 * naturally excludes tasks which shouldn't be killed, like init
++		 * and kthreads. Although oom_score_adj can still be changed
++		 * while this code runs, it doesn't really matter; we just need
++		 * a snapshot of the task's adj.
++		 */
++		sig = tsk->signal;
++		adj = READ_ONCE(sig->oom_score_adj);
++		if (adj < 0 ||
++		    sig->flags & (SIGNAL_GROUP_EXIT | SIGNAL_GROUP_COREDUMP) ||
++		    (thread_group_empty(tsk) && tsk->flags & PF_EXITING))
++			continue;
++
++		/* Store the task in a linked-list bucket based on its adj */
++		tsk->simple_lmk_next = task_bucket[adj];
++		task_bucket[adj] = tsk;
++
++		/* Track the min and max adjs to speed up the loop below */
++		if (adj > max_adj)
++			max_adj = adj;
++		if (adj < min_adj)
++			min_adj = adj;
++	}
++
++	/* Start searching for victims from the highest adj (least important) */
++	for (i = max_adj; i >= min_adj; i--) {
++		int old_vindex;
++
++		tsk = task_bucket[i];
++		if (!tsk)
++			continue;
++
++		/* Clear out this bucket for the next time reclaim is done */
++		task_bucket[i] = NULL;
++
++		/* Iterate through every task with this adj */
++		old_vindex = *vindex;
++		do {
++			struct task_struct *vtsk;
++
++			vtsk = find_lock_task_mm(tsk);
++			if (!vtsk)
++				continue;
++
++			/* Store this potential victim away for later */
++			victims[*vindex].tsk = vtsk;
++			victims[*vindex].mm = vtsk->mm;
++			victims[*vindex].size = get_total_mm_pages(vtsk->mm);
++
++			/* Count the number of pages that have been found */
++			pages_found += victims[*vindex].size;
++
++			/* Make sure there's space left in the victim array */
++			if (++*vindex == MAX_VICTIMS)
++				break;
++		} while ((tsk = tsk->simple_lmk_next));
++
++		/* Go to the next bucket if nothing was found */
++		if (*vindex == old_vindex)
++			continue;
++
++		/*
++		 * Sort the victims in descending order of size to prioritize
++		 * killing the larger ones first.
++		 */
++		sort(&victims[old_vindex], *vindex - old_vindex,
++		     sizeof(*victims), victim_cmp, victim_swap);
++
++		/* Stop when we are out of space or have enough pages found */
++		if (*vindex == MAX_VICTIMS || pages_found >= MIN_FREE_PAGES) {
++			/* Zero out any remaining buckets we didn't touch */
++			if (i > min_adj)
++				memset(&task_bucket[min_adj], 0,
++				       (i - min_adj) * sizeof(*task_bucket));
++			break;
++		}
++	}
++	rcu_read_unlock();
++
++	return pages_found;
++}
++
++static int process_victims(int vlen)
++{
++	unsigned long pages_found = 0;
++	int i, nr_to_kill = 0;
++
++	/*
++	 * Calculate the number of tasks that need to be killed and quickly
++	 * release the references to those that'll live.
++	 */
++	for (i = 0; i < vlen; i++) {
++		struct victim_info *victim = &victims[i];
++		struct task_struct *vtsk = victim->tsk;
++
++		/* The victim's mm lock is taken in find_victims; release it */
++		if (pages_found >= MIN_FREE_PAGES) {
++			task_unlock(vtsk);
++		} else {
++			pages_found += victim->size;
++			nr_to_kill++;
++		}
++	}
++
++	return nr_to_kill;
++}
++
++static void scan_and_kill(void)
++{
++	int i, nr_to_kill, nr_found = 0;
++	unsigned long pages_found;
++
++	/* Populate the victims array with tasks sorted by adj and then size */
++	pages_found = find_victims(&nr_found);
++	if (unlikely(!pages_found)) {
++		pr_err_ratelimited("No processes available to kill!\n");
++		return;
++	}
++
++	/* Minimize the number of victims if we found more pages than needed */
++	if (pages_found > MIN_FREE_PAGES) {
++		/* First round of processing to weed out unneeded victims */
++		nr_to_kill = process_victims(nr_found);
++
++		/*
++		 * Try to kill as few of the chosen victims as possible by
++		 * sorting the chosen victims by size, which means larger
++		 * victims that have a lower adj can be killed in place of
++		 * smaller victims with a high adj.
++		 */
++		sort(victims, nr_to_kill, sizeof(*victims), victim_cmp,
++		     victim_swap);
++
++		/* Second round of processing to finally select the victims */
++		nr_to_kill = process_victims(nr_to_kill);
++	} else {
++		/* Too few pages found, so all the victims need to be killed */
++		nr_to_kill = nr_found;
++	}
++
++	/* Store the final number of victims for simple_lmk_mm_freed() */
++	write_lock(&mm_free_lock);
++	nr_victims = nr_to_kill;
++	write_unlock(&mm_free_lock);
++
++	/* Kill the victims */
++	for (i = 0; i < nr_to_kill; i++) {
++		static const struct sched_param min_rt_prio = {
++			.sched_priority = 1
++		};
++		struct victim_info *victim = &victims[i];
++		struct task_struct *t, *vtsk = victim->tsk;
++
++		pr_info("Killing %s with adj %d to free %lu KiB\n", vtsk->comm,
++			vtsk->signal->oom_score_adj,
++			victim->size << (PAGE_SHIFT - 10));
++
++		/* Accelerate the victim's death by forcing the kill signal */
++		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, vtsk, true);
++
++		/*
++		 * Mark the thread group dead so that other kernel code knows,
++		 * and then elevate the thread group to SCHED_RR with minimum RT
++		 * priority. The entire group needs to be elevated because
++		 * there's no telling which threads have references to the mm as
++		 * well as which thread will happen to put the final reference
++		 * and release the mm's memory. If the mm is released from a
++		 * thread with low scheduling priority then it may take a very
++		 * long time for exit_mmap() to complete.
++		 */
++		rcu_read_lock();
++		for_each_thread(vtsk, t)
++			set_tsk_thread_flag(t, TIF_MEMDIE);
++		for_each_thread(vtsk, t)
++			sched_setscheduler_nocheck(t, SCHED_RR, &min_rt_prio);
++		rcu_read_unlock();
++
++		/* Allow the victim to run on any CPU. This won't schedule. */
++		set_cpus_allowed_ptr(vtsk, cpu_all_mask);
++
++		/* Signals can't wake frozen tasks; only a thaw operation can */
++		__thaw_task(vtsk);
++
++		/* Finally release the victim's task lock acquired earlier */
++		task_unlock(vtsk);
++	}
++
++	/* Wait until all the victims die or until the timeout is reached */
++	if (!wait_for_completion_timeout(&reclaim_done, RECLAIM_EXPIRES))
++		pr_info("Timeout hit waiting for victims to die, proceeding\n");
++
++	/* Clean up for future reclaim invocations */
++	write_lock(&mm_free_lock);
++	reinit_completion(&reclaim_done);
++	nr_victims = 0;
++	nr_killed = (atomic_t)ATOMIC_INIT(0);
++	write_unlock(&mm_free_lock);
++}
++
++static int simple_lmk_reclaim_thread(void *data)
++{
++	static const struct sched_param sched_max_rt_prio = {
++		.sched_priority = MAX_RT_PRIO - 1
++	};
++
++	sched_setscheduler_nocheck(current, SCHED_FIFO, &sched_max_rt_prio);
++	set_freezable();
++
++	while (1) {
++		wait_event_freezable(oom_waitq, atomic_read(&needs_reclaim));
++		scan_and_kill();
++		atomic_set(&needs_reclaim, 0);
++	}
++
++	return 0;
++}
++
++void simple_lmk_mm_freed(struct mm_struct *mm)
++{
++	int i;
++
++	/* Nothing to do when reclaim is starting or ending */
++	if (!read_trylock(&mm_free_lock))
++		return;
++
++	for (i = 0; i < nr_victims; i++) {
++		if (victims[i].mm == mm) {
++			victims[i].mm = NULL;
++			if (atomic_inc_return_relaxed(&nr_killed) == nr_victims)
++				complete(&reclaim_done);
++			break;
++		}
++	}
++	read_unlock(&mm_free_lock);
++}
++
++static int simple_lmk_vmpressure_cb(struct notifier_block *nb,
++				    unsigned long pressure, void *data)
++{
++	if (pressure == 100) {
++		atomic_set(&needs_reclaim, 1);
++		smp_mb__after_atomic();
++		if (waitqueue_active(&oom_waitq))
++			wake_up(&oom_waitq);
++	}
++
++	return NOTIFY_OK;
++}
++
++static struct notifier_block vmpressure_notif = {
++	.notifier_call = simple_lmk_vmpressure_cb,
++	.priority = INT_MAX
++};
++
++/* Initialize Simple LMK when lmkd in Android writes to the minfree parameter */
++static int simple_lmk_init_set(const char *val, const struct kernel_param *kp)
++{
++	static atomic_t init_done = ATOMIC_INIT(0);
++	struct task_struct *thread;
++
++	if (!atomic_cmpxchg(&init_done, 0, 1)) {
++		thread = kthread_run(simple_lmk_reclaim_thread, NULL,
++				     "simple_lmkd");
++		BUG_ON(IS_ERR(thread));
++		BUG_ON(vmpressure_notifier_register(&vmpressure_notif));
++	}
++
++	return 0;
++}
++
++static const struct kernel_param_ops simple_lmk_init_ops = {
++	.set = simple_lmk_init_set
++};
++
++/* Needed to prevent Android from thinking there's no LMK and thus rebooting */
++#undef MODULE_PARAM_PREFIX
++#define MODULE_PARAM_PREFIX "lowmemorykiller."
++module_param_cb(minfree, &simple_lmk_init_ops, NULL, 0200);
+diff --git a/../evox_a15_mix2s_mod/drivers/block/zram/zcomp.c b/./drivers/block/zram/zcomp.c
+index 5bd096789..e6e70aa32 100644
+--- a/../evox_a15_mix2s_mod/drivers/block/zram/zcomp.c
++++ b/./drivers/block/zram/zcomp.c
+@@ -38,6 +38,9 @@ static const char * const backends[] = {
+ #if IS_ENABLED(CONFIG_CRYPTO_LZ4KD)
+ 	"lz4kd",
+ #endif
++#if IS_ENABLED(CONFIG_CRYPTO_DEFLATE)
++	"deflate",
++#endif
+ #if IS_ENABLED(CONFIG_CRYPTO_842)
+ 	"842",
+ #endif
+diff --git a/./drivers/scsi/ufs/ufshpb.h b/./drivers/scsi/ufs/ufshpb.h
+new file mode 100644
+index 000000000..40292b158
+--- /dev/null
++++ b/./drivers/scsi/ufs/ufshpb.h
+@@ -0,0 +1,404 @@
++/*
++ * Universal Flash Storage Host Performance Booster
++ *
++ * Copyright (C) 2017-2018 Samsung Electronics Co., Ltd.
++ * Copyright (C) 2018, Google, Inc.
++ *
++ * Authors:
++ *	Yongmyung Lee <ymhungry.lee@samsung.com>
++ *	Jinyoung Choi <j-young.choi@samsung.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ * See the COPYING file in the top-level directory or visit
++ * <http://www.gnu.org/licenses/gpl-2.0.html>
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * This program is provided "AS IS" and "WITH ALL FAULTS" and
++ * without warranty of any kind. You are solely responsible for
++ * determining the appropriateness of using and distributing
++ * the program and assume all risks associated with your exercise
++ * of rights with respect to the program, including but not limited
++ * to infringement of third party rights, the risks and costs of
++ * program errors, damage to or loss of data, programs or equipment,
++ * and unavailability or interruption of operations. Under no
++ * circumstances will the contributor of this Program be liable for
++ * any damages of any kind arising from your use or distribution of
++ * this program.
++ *
++ * The Linux Foundation chooses to take subject only to the GPLv2
++ * license terms, and distributes only under these terms.
++ */
++
++#ifndef _UFSHPB_H_
++#define _UFSHPB_H_
++
++#include <linux/spinlock.h>
++#include <linux/circ_buf.h>
++#include <linux/workqueue.h>
++
++/* Version info*/
++#define UFSHPB_VER				0x0103
++#define UFSHPB_DD_VER				0x0135
++
++/* Constant value*/
++#define SECTOR					512
++#define BLOCK					4096
++#define SECTORS_PER_BLOCK			(BLOCK / SECTOR)
++#define BITS_PER_DWORD				32
++#define MAX_MAP_REQ				16
++#define MAX_ACTIVE_NUM				2
++#define MAX_INACTIVE_NUM			2
++
++#define HPB_ENTRY_SIZE				0x08
++#define OS_PAGE_SIZE				4096
++#define HPB_ENTREIS_PER_OS_PAGE			(OS_PAGE_SIZE / HPB_ENTRY_SIZE)
++#define IOCTL_DEV_CTX_MAX_SIZE			OS_PAGE_SIZE
++#define OS_PAGE_SHIFT				12
++
++/* Description */
++#define UFS_FEATURE_SUPPORT_HPB_BIT			0x80
++#define UFSHPB_QUERY_DESC_DEVICE_MAX_SIZE		0x48
++#define UFSHPB_QUERY_DESC_CONFIGURAION_MAX_SIZE		0xD0
++#define UFSHPB_QUERY_DESC_UNIT_MAX_SIZE			0x2C
++#define UFSHPB_QUERY_DESC_GEOMETRY_MAX_SIZE		0x50
++
++/* Configuration for HPB */
++#define UFSHPB_CONF_LU_ENABLE			0x00
++#define UFSHPB_CONF_ACTIVE_REGIONS		0x10
++#define UFSHPB_CONF_PINNED_START		0x12
++#define UFSHPB_CONF_PINNED_NUM			0x14
++
++/* Parameter Macros */
++#define HPB_DEV(h)	((h)->hba->dev)
++#define MAX_BVEC_SIZE	128
++
++/* Use for HPB activate */
++#define UFSHPB_CONFIG_LEN	0xd0
++
++enum ufshpb_lu_set {
++	LU_DISABLE	= 0x00,
++	LU_ENABLE	= 0x01,
++	LU_HPB_ENABLE	= 0x02,
++	LU_SET_MAX,
++};
++
++struct ufshpb_config_desc {
++	unsigned char conf_dev_desc[16];
++	unsigned char unit[UFS_UPIU_MAX_GENERAL_LUN][24];
++};
++
++/* Response UPIU types */
++#define HPB_RSP_NONE					0x00
++#define HPB_RSP_REQ_REGION_UPDATE			0x01
++#define PER_ACTIVE_INFO_BYTES				4
++#define PER_INACTIVE_INFO_BYTES				2
++
++/* Vender defined OPCODE */
++#define UFSHPB_READ_BUFFER				0xF9
++
++#define DEV_DATA_SEG_LEN				0x14
++#define DEV_SENSE_SEG_LEN				0x12
++#define DEV_DES_TYPE					0x80
++#define DEV_ADDITIONAL_LEN				0x11
++
++/* BYTE SHIFT */
++#define ZERO_BYTE_SHIFT					0
++#define ONE_BYTE_SHIFT					8
++#define TWO_BYTE_SHIFT					16
++#define THREE_BYTE_SHIFT				24
++#define FOUR_BYTE_SHIFT					32
++#define FIVE_BYTE_SHIFT					40
++#define SIX_BYTE_SHIFT					48
++#define SEVEN_BYTE_SHIFT				56
++
++#define SHIFT_BYTE_0(num)		((num) << ZERO_BYTE_SHIFT)
++#define SHIFT_BYTE_1(num)		((num) << ONE_BYTE_SHIFT)
++#define SHIFT_BYTE_2(num)		((num) << TWO_BYTE_SHIFT)
++#define SHIFT_BYTE_3(num)		((num) << THREE_BYTE_SHIFT)
++#define SHIFT_BYTE_4(num)		((num) << FOUR_BYTE_SHIFT)
++#define SHIFT_BYTE_5(num)		((num) << FIVE_BYTE_SHIFT)
++#define SHIFT_BYTE_6(num)		((num) << SIX_BYTE_SHIFT)
++#define SHIFT_BYTE_7(num)		((num) << SEVEN_BYTE_SHIFT)
++
++#define GET_BYTE_0(num)			(((num) >> ZERO_BYTE_SHIFT) & 0xff)
++#define GET_BYTE_1(num)			(((num) >> ONE_BYTE_SHIFT) & 0xff)
++#define GET_BYTE_2(num)			(((num) >> TWO_BYTE_SHIFT) & 0xff)
++#define GET_BYTE_3(num)			(((num) >> THREE_BYTE_SHIFT) & 0xff)
++#define GET_BYTE_4(num)			(((num) >> FOUR_BYTE_SHIFT) & 0xff)
++#define GET_BYTE_5(num)			(((num) >> FIVE_BYTE_SHIFT) & 0xff)
++#define GET_BYTE_6(num)			(((num) >> SIX_BYTE_SHIFT) & 0xff)
++#define GET_BYTE_7(num)			(((num) >> SEVEN_BYTE_SHIFT) & 0xff)
++
++#define BE_BYTE(p, i)							\
++		((u16) SHIFT_BYTE_1(*((u8 *)(p) + (i))) |		\
++		(u16) SHIFT_BYTE_0(*((u8 *)(p) + (i + 1))))
++#define REGION_UNIT_SIZE(bit_offset)		(0x01 << (bit_offset))
++
++enum UFSHPB_STATE {
++	HPB_PRESENT = 1,
++	HPB_NOT_SUPPORTED = -1,
++	HPB_FAILED = -2,
++	HPB_NEED_INIT = 0,
++	HPB_RESET = -3,
++};
++
++enum HPBREGION_STATE {
++	HPBREGION_INACTIVE,
++	HPBREGION_ACTIVE,
++	HPBREGION_PINNED,
++};
++
++enum HPBSUBREGION_STATE {
++	HPBSUBREGION_UNUSED,
++	HPBSUBREGION_DIRTY,
++	HPBSUBREGION_CLEAN,
++	HPBSUBREGION_ISSUED,
++};
++
++struct ufshpb_func_desc {
++	/*** Device Descriptor ***/
++	/* 06h bNumberLU */
++	int lu_cnt;
++	/* 40h HPB Version */
++	u16 hpb_ver;
++
++	/*** Geometry Descriptor ***/
++	/* 48h bHPBRegionSize (UNIT: 512KB) */
++	u8 hpb_region_size;
++	/* 49h bHPBNumberLU */
++	u8 hpb_number_lu;
++	/* 4Ah bHPBSubRegionSize */
++	u8 hpb_subregion_size;
++	/* 4B:4Ch wDeviceMaxActiveHPBRegions */
++	u16 hpb_device_max_active_regions;
++};
++
++struct ufshpb_lu_desc {
++	/*** Unit Descriptor ****/
++	/* 03h bLUEnable */
++	int lu_enable;
++	/* 06h lu queue depth info*/
++	int lu_queue_depth;
++	/* 0Ah bLogicalBlockSize. default 0x0C = 4KB */
++	int lu_logblk_size;
++	/* 0Bh qLogicalBlockCount. same as the read_capacity ret val. */
++	u64 lu_logblk_cnt;
++
++	/* 23h:24h wLUMaxActiveHPBRegions */
++	u16 lu_max_active_hpb_regions;
++	/* 25h:26h wHPBPinnedRegionStartIdx */
++	u16 hpb_pinned_region_startidx;
++	/* 27h:28h wNumHPBPinnedRegions */
++	u16 lu_num_hpb_pinned_regions;
++
++
++	/* if 03h value is 02h, hpb_enable is set. */
++	bool lu_hpb_enable;
++
++	int lu_hpb_pinned_end_offset;
++};
++
++struct ufshpb_rsp_active_list {
++	u16 region[MAX_ACTIVE_NUM];
++	u16 subregion[MAX_ACTIVE_NUM];
++};
++
++struct ufshpb_rsp_inactive_list {
++	u16 region[MAX_INACTIVE_NUM];
++};
++
++struct ufshpb_rsp_update_entry {
++	unsigned int lpn;
++	unsigned long long ppn;
++};
++
++struct ufshpb_rsp_info {
++	int type;
++	int active_cnt;
++	int inactive_cnt;
++	struct ufshpb_rsp_active_list active_list;
++	struct ufshpb_rsp_inactive_list inactive_list;
++
++	__u64 RSP_start;
++	__u64 RSP_tasklet_enter;
++
++	struct list_head list_rsp_info;
++};
++
++struct ufshpb_rsp_field {
++	u8 sense_data_len[2];
++	u8 desc_type;
++	u8 additional_len;
++	u8 hpb_type;
++	u8 reserved;
++	u8 active_region_cnt;
++	u8 inactive_region_cnt;
++	u8 hpb_active_field[8];
++	u8 hpb_inactive_field[4];
++};
++
++struct ufshpb_map_ctx {
++	struct page **m_page;
++	unsigned int *ppn_dirty;
++
++	struct list_head list_table;
++};
++
++struct ufshpb_subregion {
++	struct ufshpb_map_ctx *mctx;
++	enum HPBSUBREGION_STATE subregion_state;
++	int region;
++	int subregion;
++
++	struct list_head list_subregion;
++};
++
++struct ufshpb_region {
++	struct ufshpb_subregion *subregion_tbl;
++	enum HPBREGION_STATE region_state;
++	int region;
++	int subregion_count;
++
++	/*below information is used by lru*/
++	struct list_head list_region;
++	int hit_count;
++};
++
++struct ufshpb_map_req {
++	struct ufshpb_lu *hpb;
++	struct ufshpb_map_ctx *mctx;
++	struct request req;
++	struct bio bio;
++	struct bio_vec bvec[MAX_BVEC_SIZE];
++	void (*end_io)(struct request *rq, int err);
++	void *end_io_data;
++	int region;
++	int subregion;
++	int lun;
++	int retry_cnt;
++
++	/* for debug : RSP Profiling */
++	__u64 RSP_start; // get the request from device
++	__u64 RSP_tasklet_enter1; // tesklet sched time
++	__u64 RSP_issue; // issue scsi cmd
++	__u64 RSP_endio;
++	__u64 RSP_tasklet_enter2;
++	__u64 RSP_end;	 // complete the request
++
++	char sense[SCSI_SENSE_BUFFERSIZE];
++
++	struct list_head list_map_req;
++};
++
++enum selection_type {
++	LRU = 1,
++	LFU = 2,
++};
++
++struct victim_select_info {
++	int selection_type;
++	struct list_head lru;
++	int max_lru_active_cnt;	// supported hpb #region - pinned #region
++	atomic64_t active_cnt;
++};
++
++struct ufshpb_lu {
++	struct ufshpb_region *region_tbl;
++	struct ufshpb_rsp_info *rsp_info;
++	struct ufshpb_map_req *map_req;
++
++	struct list_head lh_map_ctx;
++	struct list_head lh_subregion_req;
++	struct list_head lh_rsp_info;
++
++	struct list_head lh_rsp_info_free;
++	struct list_head lh_map_req_free;
++	struct list_head lh_map_req_retry;
++	int debug_free_table;
++
++	bool lu_hpb_enable;
++
++	struct work_struct ufshpb_work;
++	struct delayed_work ufshpb_retry_work;
++	struct tasklet_struct ufshpb_tasklet;
++	struct bio_vec bvec[MAX_BVEC_SIZE];
++
++	int subregions_per_lu;
++	int regions_per_lu;
++	int subregion_mem_size;
++
++	/* for selecting victim */
++	struct victim_select_info lru_info;
++
++	int hpb_ver;
++	int lu_max_active_regions;
++
++	int entries_per_subregion;
++	int entries_per_subregion_shift;
++	int entries_per_subregion_mask;
++
++	int entries_per_region_shift;
++	int entries_per_region_mask;
++	int subregions_per_region;
++
++	int dwords_per_subregion;
++	unsigned long long subregion_unit_size;
++
++	int mpage_bytes;
++	int mpages_per_subregion;
++
++	/* for debug constant variables */
++	int lu_num_blocks;
++
++	int lun;
++
++	struct ufs_hba *hba;
++
++	spinlock_t hpb_lock;
++	spinlock_t rsp_list_lock;
++
++	struct kobject kobj;
++	struct mutex sysfs_lock;
++	struct ufshpb_sysfs_entry *sysfs_entries;
++
++	/* for debug */
++	bool force_disable;
++	bool force_map_req_disable;
++	bool read_buf_debug;
++	atomic64_t hit;
++	atomic64_t miss;
++	atomic64_t region_miss;
++	atomic64_t subregion_miss;
++	atomic64_t entry_dirty_miss;
++	atomic64_t rb_noti_cnt;
++	atomic64_t map_req_cnt;
++	atomic64_t region_add;
++	atomic64_t region_evict;
++	atomic64_t rb_fail;
++};
++
++struct ufshpb_sysfs_entry {
++	struct attribute    attr;
++	ssize_t (*show)(struct ufshpb_lu *hpb, char *buf);
++	ssize_t (*store)(struct ufshpb_lu *hpb, const char *, size_t);
++};
++
++struct ufshcd_lrb;
++
++void ufshcd_init_hpb(struct ufs_hba *hba);
++void ufshpb_init_handler(struct work_struct *work);
++void ufshpb_prep_fn(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
++void ufshpb_rsp_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
++void ufshpb_release(struct ufs_hba *hba, int state);
++int ufshpb_issue_req_dev_ctx(struct ufshpb_lu *hpb, unsigned char *buf,
++				int buf_length);
++int ufshpb_control_validation(struct ufs_hba *hba,
++				struct ufshpb_config_desc *config);
++#endif /* End of Header */
+diff --git a/../evox_a15_mix2s_mod/include/linux/mmzone.h b/./include/linux/mmzone.h
+index f146244e7..c4cf8f938 100644
+--- a/../evox_a15_mix2s_mod/include/linux/mmzone.h
++++ b/./include/linux/mmzone.h
+@@ -638,6 +638,7 @@ typedef struct pglist_data {
+ 	unsigned long node_spanned_pages; /* total size of physical page
+ 					     range, including holes */
+ 	int node_id;
++	atomic_t kswapd_waiters;
+ 	wait_queue_head_t kswapd_wait;
+ 	wait_queue_head_t pfmemalloc_wait;
+ 	struct task_struct *kswapd;	/* Protected by
+diff --git a/../evox_a15_mix2s_mod/include/linux/sched.h b/./include/linux/sched.h
+index af8ed3a49..17fcd4d05 100755
+--- a/../evox_a15_mix2s_mod/include/linux/sched.h
++++ b/./include/linux/sched.h
+@@ -2207,6 +2207,12 @@ struct task_struct {
+ 	/* A live task holds one reference. */
+ 	atomic_t stack_refcount;
+ #endif
++#ifdef CONFIG_ANDROID_SIMPLE_LMK
++	struct task_struct		*simple_lmk_next;
++#endif
++#ifdef CONFIG_ANDROID_SIMPLE_LMK
++	struct task_struct		*simple_lmk_next;
++#endif
+ /* CPU-specific state of this task */
+ #ifdef CONFIG_KSU_SUSFS
+ 	u64 susfs_task_state;
+diff --git a/./include/linux/simple_lmk.h b/./include/linux/simple_lmk.h
+new file mode 100644
+index 000000000..b02d1bec9
+--- /dev/null
++++ b/./include/linux/simple_lmk.h
+@@ -0,0 +1,18 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2019-2020 Sultan Alsawaf <sultan@kerneltoast.com>.
++ */
++#ifndef _SIMPLE_LMK_H_
++#define _SIMPLE_LMK_H_
++
++struct mm_struct;
++
++#ifdef CONFIG_ANDROID_SIMPLE_LMK
++void simple_lmk_mm_freed(struct mm_struct *mm);
++#else
++static inline void simple_lmk_mm_freed(struct mm_struct *mm)
++{
++}
++#endif
++
++#endif /* _SIMPLE_LMK_H_ */
+diff --git a/../evox_a15_mix2s_mod/kernel/exit.c b/./kernel/exit.c
+index c4f70f0f4..c35a014c8 100644
+--- a/../evox_a15_mix2s_mod/kernel/exit.c
++++ b/./kernel/exit.c
+@@ -517,8 +517,12 @@ static void exit_mm(struct task_struct *tsk)
+ 	mm_update_next_owner(mm);
+ 
+ 	mm_released = mmput(mm);
++#ifdef CONFIG_ANDROID_SIMPLE_LMK
++	clear_thread_flag(TIF_MEMDIE);
++#else
+ 	if (test_thread_flag(TIF_MEMDIE))
+ 		exit_oom_victim();
++#endif
+ 	if (mm_released)
+ 		set_tsk_thread_flag(tsk, TIF_MM_RELEASED);
+ }
+diff --git a/../evox_a15_mix2s_mod/kernel/fork.c b/./kernel/fork.c
+index 300761b7a..97253140f 100644
+--- a/../evox_a15_mix2s_mod/kernel/fork.c
++++ b/./kernel/fork.c
+@@ -80,6 +80,7 @@
+ #include <linux/sysctl.h>
+ #include <linux/kcov.h>
+ #include <linux/cpufreq_times.h>
++#include <linux/simple_lmk.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -888,6 +889,7 @@ static inline void __mmput(struct mm_struct *mm)
+ 	ksm_exit(mm);
+ 	khugepaged_exit(mm); /* must run before exit_mmap */
+ 	exit_mmap(mm);
++	simple_lmk_mm_freed(mm);
+ 	mm_put_huge_zero_page(mm);
+ 	set_mm_exe_file(mm, NULL);
+ 	if (!list_empty(&mm->mmlist)) {
+diff --git a/../evox_a15_mix2s_mod/mm/oom_kill.c b/./mm/oom_kill.c
+index 6dbc34d08..5e05e5f35 100755
+--- a/../evox_a15_mix2s_mod/mm/oom_kill.c
++++ b/./mm/oom_kill.c
+@@ -1017,6 +1017,10 @@ bool out_of_memory(struct oom_control *oc)
+ 	unsigned long freed = 0;
+ 	enum oom_constraint constraint = CONSTRAINT_NONE;
+ 
++	/* Return true since Simple LMK automatically kills in the background */
++	if (IS_ENABLED(CONFIG_ANDROID_SIMPLE_LMK))
++		return true;
++
+ 	if (oom_killer_disabled)
+ 		return false;
+ 
+diff --git a/../evox_a15_mix2s_mod/mm/page_alloc.c b/./mm/page_alloc.c
+index 5672fe3c9..1fa121b2e 100755
+--- a/../evox_a15_mix2s_mod/mm/page_alloc.c
++++ b/./mm/page_alloc.c
+@@ -3692,6 +3692,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	int compaction_retries;
+ 	int no_progress_loops;
+ 	unsigned int cpuset_mems_cookie;
++	pg_data_t *pgdat = ac->preferred_zoneref->zone->zone_pgdat;
++	bool woke_kswapd = false;
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3736,8 +3738,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+ 
+-	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
++	if (gfp_mask & __GFP_KSWAPD_RECLAIM) {
++		if (!woke_kswapd) {
++			atomic_inc(&pgdat->kswapd_waiters);
++			woke_kswapd = true;
++		}
+ 		wake_all_kswapds(order, ac);
++	}
+ 
+ 	/*
+ 	 * The adjusted alloc_flags might result in immediate success, so try
+@@ -3909,9 +3916,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (read_mems_allowed_retry(cpuset_mems_cookie))
+ 		goto retry_cpuset;
+ 
+-	warn_alloc(gfp_mask,
+-			"page allocation failure: order:%u", order);
+ got_pg:
++	if (woke_kswapd)
++		atomic_dec(&pgdat->kswapd_waiters);
++	if (!page)
++		warn_alloc(gfp_mask,
++				"page allocation failure: order:%u", order);
+ 	return page;
+ }
+ 
+@@ -5983,6 +5993,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 	pgdat_page_ext_init(pgdat);
+ 	spin_lock_init(&pgdat->lru_lock);
+ 	lruvec_init(node_lruvec(pgdat));
++	pgdat->kswapd_waiters = (atomic_t)ATOMIC_INIT(0);
+ 
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+diff --git a/../evox_a15_mix2s_mod/mm/swap.c b/./mm/swap.c
+index 4cffcb48f..db7e22cc3 100644
+--- a/../evox_a15_mix2s_mod/mm/swap.c
++++ b/./mm/swap.c
+@@ -981,7 +981,7 @@ EXPORT_SYMBOL(pagevec_lookup_range_nr_tag);
+  */
+ void __init swap_setup(void)
+ {
+-	unsigned long megs = totalram_pages >> (20 - PAGE_SHIFT);
++	unsigned long megs = totalram_pages() >> (20 - PAGE_SHIFT);
+ #ifdef CONFIG_SWAP
+ 	int i;
+ 
+diff --git a/../evox_a15_mix2s_mod/mm/vmalloc.c b/./mm/vmalloc.c
+index c3381c7e9..4b4ba1f17 100644
+--- a/../evox_a15_mix2s_mod/mm/vmalloc.c
++++ b/./mm/vmalloc.c
+@@ -3443,9 +3443,6 @@ static int s_show(struct seq_file *m, void *p)
+ 
+ 	v = va->vm;
+ 
+-	if (v->flags & VM_LOWMEM)
+-		return 0;
+-
+ 	seq_printf(m, "0x%pK-0x%pK %7ld",
+ 		v->addr, v->addr + v->size, v->size);
+ 
+diff --git a/../evox_a15_mix2s_mod/mm/vmscan.c b/./mm/vmscan.c
+index 29cf6725f..fd217cd9f 100644
+--- a/../evox_a15_mix2s_mod/mm/vmscan.c
++++ b/./mm/vmscan.c
+@@ -3485,7 +3485,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 			wake_up_all(&pgdat->pfmemalloc_wait);
+ 
+ 		/* Check if kswapd should be suspending */
+-		if (try_to_freeze() || kthread_should_stop())
++		if (try_to_freeze() || kthread_should_stop() ||
++		    !atomic_read(&pgdat->kswapd_waiters))
+ 			break;
+ 
+ 		/*
