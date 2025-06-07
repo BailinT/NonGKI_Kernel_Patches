@@ -1,0 +1,15 @@
+--- include/linux/input/qpnp-power-on.h	2025-06-07 23:10:32.712039619 +0800
++++ include/linux/input/qpnp-power-on.h.orig	2025-06-07 23:10:10.526031156 +0800
+@@ -60,9 +60,9 @@
+ 	PON_RESTART_REASON_DMVERITY_ENFORCE	= 0x05,
+ 	PON_RESTART_REASON_KEYS_CLEAR		= 0x06,
+ 
+-	PON_RESTART_REASON_OEM_BOOT		= 0x07,
+-	PON_RESTART_REASON_NORMAL		= 0x20,
+-	PON_RESTART_REASON_PANIC		= 0x21,
++	/* 32 ~ 63 for OEMs/ODMs secific features */
++	PON_RESTART_REASON_OEM_MIN		= 0x20,
++	PON_RESTART_REASON_OEM_MAX		= 0x3f,
+ };
+ 
+ #ifdef CONFIG_INPUT_QPNP_POWER_ON
