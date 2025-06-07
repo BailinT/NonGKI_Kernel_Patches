@@ -1,0 +1,27 @@
+--- a/sound/soc/msm/qdsp6v2/msm-pcm-routing-v2.c.	2025-06-08 00:14:46.847683041 +0800
++++ b/sound/soc/msm/qdsp6v2/msm-pcm-routing-v2.c	2025-06-08 00:14:23.279676239 +0800
+@@ -22488,9 +22488,6 @@
+ 		platform, msm_routing_feature_support_mixer_controls,
+ 		ARRAY_SIZE(msm_routing_feature_support_mixer_controls));
+ 
+-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+-	elliptic_add_platform_controls(platform);
+-#endif
+ 
+ 	return 0;
+ }
+
+--- a/sound/soc/msm/qdsp6v2/q6afe.c	2025-06-08 00:15:40.899698656 +0800
++++ b/sound/soc/msm/qdsp6v2/q6afe.c	2025-03-27 19:48:30.591022031 +0800
+@@ -616,11 +616,6 @@
+ 		if (!ret) {
+ 			return ret;
+ 		}
+-#ifdef CONFIG_MACH_XIAOMI_MSM8998
+-	} else if (data->opcode == ULTRASOUND_OPCODE) {
+-		if (data->payload != NULL)
+-			elliptic_process_apr_payload(data->payload);
+-#endif
+ 	} else if (data->payload_size) {
+ 		uint32_t *payload;
+ 		uint16_t port_id = 0;
