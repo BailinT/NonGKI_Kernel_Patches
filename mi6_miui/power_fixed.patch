@@ -1,5 +1,5 @@
---- include/linux/input/qpnp-power-on.h	2025-06-07 23:10:32.712039619 +0800
-+++ include/linux/input/qpnp-power-on.h.orig	2025-06-07 23:10:10.526031156 +0800
+--- a/include/linux/input/qpnp-power-on.h	2025-06-07 23:10:32.712039619 +0800
++++ b/include/linux/input/qpnp-power-on.h	2025-06-07 23:10:10.526031156 +0800
 @@ -60,9 +60,9 @@
  	PON_RESTART_REASON_DMVERITY_ENFORCE	= 0x05,
  	PON_RESTART_REASON_KEYS_CLEAR		= 0x06,
