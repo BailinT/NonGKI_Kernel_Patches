@@ -1,0 +1,13 @@
+--- techpack/camera/drivers/oplus/cam_sensor_module/cam_ois/onsemi_fw/LC898128/PhoneUpdate.c.orig	2025-06-08 00:00:28.246438142 +0800
++++ techpack/camera/drivers/oplus/cam_sensor_module/cam_ois/onsemi_fw/LC898128/PhoneUpdate.c	2025-03-31 20:29:53.572226435 +0800
+@@ -210,7 +210,9 @@
+ 		UlNum = 2;
+ 		for(j=0 ; j < BURST_LENGTH_UC; j++){
+ 			data[UlNum] =  *NcDataVal++;
+-			if( ( j % 5) == 4)	TRACE("\n");
++			if( ( j % 5) == 4){
++				TRACE("\n");
++			}
+ 			UlNum++;
+ 		}
+ 		
