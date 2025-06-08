@@ -1,5 +1,5 @@
---- drivers/crypto/msm/qcedev.c.orig	2025-06-08 17:30:46.503459856 +0800
-+++ drivers/crypto/msm/qcedev.c	2025-06-08 17:24:51.646524553 +0800
+--- a/drivers/crypto/msm/qcedev.c	2025-06-08 17:30:46.503459856 +0800
++++ b/drivers/crypto/msm/qcedev.c	2025-06-08 17:24:51.646524553 +0800
 @@ -1808,10 +1808,11 @@
  				handle->sha_ctxt.diglen);
  		mutex_unlock(&hash_access_lock);
