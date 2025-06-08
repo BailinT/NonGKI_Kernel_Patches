@@ -1,0 +1,28 @@
+--- drivers/crypto/msm/qcedev.c.orig	2025-06-08 17:30:46.503459856 +0800
++++ drivers/crypto/msm/qcedev.c	2025-06-08 17:24:51.646524553 +0800
+@@ -1808,10 +1808,11 @@
+ 				handle->sha_ctxt.diglen);
+ 		mutex_unlock(&hash_access_lock);
+ 		if (copy_to_user((void __user *)arg, &qcedev_areq->sha_op_req,
+-					sizeof(struct qcedev_sha_op_req)))
++					sizeof(struct qcedev_sha_op_req))) {
+ 			err = -EFAULT;
+ 			goto exit_free_qcedev_areq;
+ 		}
++		}
+ 		break;
+ 
+ 	case QCEDEV_IOCTL_SHA_FINAL_REQ:
+@@ -1900,10 +1901,11 @@
+ 				handle->sha_ctxt.diglen);
+ 		mutex_unlock(&hash_access_lock);
+ 		if (copy_to_user((void __user *)arg, &qcedev_areq->sha_op_req,
+-					sizeof(struct qcedev_sha_op_req)))
++					sizeof(struct qcedev_sha_op_req))) {
+ 			err = -EFAULT;
+ 			goto exit_free_qcedev_areq;
+ 		}
++		}
+ 		break;
+ 
+ 	case QCEDEV_IOCTL_MAP_BUF_REQ:
