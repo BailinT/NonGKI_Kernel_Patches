@@ -1,5 +1,5 @@
---- kernel/cgroup/cgroup.c	2025-06-23 19:26:08.627921159 +0800
-+++ kernel/cgroup/cgroup.c.orig	2025-06-23 20:02:12.649781237 +0800
+--- a/kernel/cgroup/cgroup.c	2025-06-23 19:26:08.627921159 +0800
++++ b/kernel/cgroup/cgroup.c	2025-06-23 20:02:12.649781237 +0800
 @@ -2069,165 +2069,6 @@
  	return dentry;
  }
