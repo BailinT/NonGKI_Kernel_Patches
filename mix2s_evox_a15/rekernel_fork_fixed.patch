@@ -1,0 +1,30 @@
+--- a/drivers/android/binder.c
++++ b/drivers/android/binder.c
+@@ -62,6 +62,7 @@
+ #include <linux/pid_namespace.h>
+ #include <linux/security.h>
+ #include <linux/spinlock.h>
++#include <linux/rekernel.h>
+ #include <linux/ratelimit.h>
+ #include <linux/syscalls.h>
+ #include <linux/task_work.h>
+--- a/drivers/android/binder_alloc.c
++++ b/drivers/android/binder_alloc.c
+@@ -22,6 +22,7 @@
+ #include <asm/cacheflush.h>
+ #include <linux/uaccess.h>
+ #include <linux/highmem.h>
++#include <linux/rekernel.h>
+ #include <linux/sizes.h>
+ #include "binder_alloc.h"
+ #include "binder_trace.h"
+--- a/kernel/signal.c
++++ b/kernel/signal.c
+@@ -37,6 +37,7 @@
+ #include <linux/cn_proc.h>
+ #include <linux/compiler.h>
+ #include <linux/cgroup.h>
++#include <linux/rekernel.h>
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/signal.h>
