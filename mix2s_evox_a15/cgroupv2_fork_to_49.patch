@@ -1,8 +1,8 @@
-diff --git a/evox_a15_mix2s_cgroupv2/Documentation/cgroup-v1/rdma.txt b/evox_a15_mix2s_cgroupv2/Documentation/cgroup-v1/rdma.txt
+diff --git a/Documentation/cgroup-v1/rdma.txt b/Documentation/cgroup-v1/rdma.txt
 new file mode 100644
 index 0000000..af61817
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/Documentation/cgroup-v1/rdma.txt
++++ b/Documentation/cgroup-v1/rdma.txt
 @@ -0,0 +1,109 @@
 +				RDMA Controller
 +				----------------
@@ -113,10 +113,10 @@ index 0000000..af61817
 +
 +(d) Delete resource limit:
 +echo echo mlx4_0 hca_handle=max hca_object=max > /sys/fs/cgroup/rdma/1/rdma.max
-diff --git a/evox_a15_mix2s/Documentation/cgroup-v2.txt b/evox_a15_mix2s_cgroupv2/Documentation/cgroup-v2.txt
+diff --git a/evox_a15_mix2s/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
 index 73950fd..252e517 100644
 --- a/evox_a15_mix2s/Documentation/cgroup-v2.txt
-+++ b/evox_a15_mix2s_cgroupv2/Documentation/cgroup-v2.txt
++++ b/Documentation/cgroup-v2.txt
 @@ -16,7 +16,9 @@ CONTENTS
    1-2. What is cgroup?
  2. Basic Operations
@@ -703,10 +703,10 @@ index 73950fd..252e517 100644
  
  - The "tasks" file is removed and "cgroup.procs" is not sorted.
  
-diff --git a/evox_a15_mix2s/Documentation/kernel-parameters.txt b/evox_a15_mix2s_cgroupv2/Documentation/kernel-parameters.txt
+diff --git a/evox_a15_mix2s/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
 index a66de7d..8585703 100644
 --- a/evox_a15_mix2s/Documentation/kernel-parameters.txt
-+++ b/evox_a15_mix2s_cgroupv2/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
 @@ -702,6 +702,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
  			nosocket -- Disable socket memory accounting.
  			nokmem -- Disable kernel memory accounting.
@@ -723,10 +723,10 @@ index a66de7d..8585703 100644
  	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
  			Format: { "0" | "1" }
  			See security/selinux/Kconfig help text.
-diff --git a/evox_a15_mix2s/arch/arm64/configs/vendor/xiaomi/mi845_defconfig b/evox_a15_mix2s_cgroupv2/arch/arm64/configs/vendor/xiaomi/mi845_defconfig
+diff --git a/evox_a15_mix2s/arch/arm64/configs/vendor/xiaomi/mi845_defconfig b/arch/arm64/configs/vendor/xiaomi/mi845_defconfig
 index 4cad394..911cbd4 100644
 --- a/evox_a15_mix2s/arch/arm64/configs/vendor/xiaomi/mi845_defconfig
-+++ b/evox_a15_mix2s_cgroupv2/arch/arm64/configs/vendor/xiaomi/mi845_defconfig
++++ b/arch/arm64/configs/vendor/xiaomi/mi845_defconfig
 @@ -22,10 +22,18 @@ CONFIG_MEMCG=y
  CONFIG_MEMCG_SWAP=y
  CONFIG_CGROUP_SCHEDTUNE=y
@@ -746,10 +746,10 @@ index 4cad394..911cbd4 100644
  CONFIG_SCHED_CORE_CTL=y
  CONFIG_SCHED_CORE_ROTATE=y
  CONFIG_NAMESPACES=y
-diff --git a/evox_a15_mix2s/fs/kernfs/mount.c b/evox_a15_mix2s_cgroupv2/fs/kernfs/mount.c
+diff --git a/evox_a15_mix2s/fs/kernfs/mount.c b/fs/kernfs/mount.c
 index d5b149a..07a0b7d 100644
 --- a/evox_a15_mix2s/fs/kernfs/mount.c
-+++ b/evox_a15_mix2s_cgroupv2/fs/kernfs/mount.c
++++ b/fs/kernfs/mount.c
 @@ -123,8 +123,10 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
  		return dentry;
  
@@ -772,10 +772,10 @@ index d5b149a..07a0b7d 100644
  			return ERR_PTR(-EINVAL);
  		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
  					       strlen(kntmp->name));
-diff --git a/evox_a15_mix2s/include/linux/cgroup-defs.h b/evox_a15_mix2s_cgroupv2/include/linux/cgroup-defs.h
+diff --git a/evox_a15_mix2s/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
 index 35a28e4..ab429b4 100644
 --- a/evox_a15_mix2s/include/linux/cgroup-defs.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/cgroup-defs.h
++++ b/include/linux/cgroup-defs.h
 @@ -13,6 +13,7 @@
  #include <linux/wait.h>
  #include <linux/mutex.h>
@@ -1088,10 +1088,10 @@ index 35a28e4..ab429b4 100644
  	/*
  	 * If %false, this subsystem is properly hierarchical -
  	 * configuration, resource accounting and restriction on a parent
-diff --git a/evox_a15_mix2s/include/linux/cgroup.h b/evox_a15_mix2s_cgroupv2/include/linux/cgroup.h
+diff --git a/evox_a15_mix2s/include/linux/cgroup.h b/include/linux/cgroup.h
 index 4e93ff0..55a878a 100755
 --- a/evox_a15_mix2s/include/linux/cgroup.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
 @@ -17,11 +17,11 @@
  #include <linux/seq_file.h>
  #include <linux/kernfs.h>
@@ -1279,11 +1279,11 @@ index 4e93ff0..55a878a 100755
 +#endif /* !CONFIG_CGROUPS */
 +
  #endif /* _LINUX_CGROUP_H */
-diff --git a/evox_a15_mix2s_cgroupv2/include/linux/cgroup_rdma.h b/evox_a15_mix2s_cgroupv2/include/linux/cgroup_rdma.h
+diff --git a/include/linux/cgroup_rdma.h b/include/linux/cgroup_rdma.h
 new file mode 100644
 index 0000000..e94290b
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/cgroup_rdma.h
++++ b/include/linux/cgroup_rdma.h
 @@ -0,0 +1,53 @@
 +/*
 + * Copyright (C) 2016 Parav Pandit <pandit.parav@gmail.com>
@@ -1338,10 +1338,10 @@ index 0000000..e94290b
 +		     enum rdmacg_resource_type index);
 +#endif	/* CONFIG_CGROUP_RDMA */
 +#endif	/* _CGROUP_RDMA_H */
-diff --git a/evox_a15_mix2s/include/linux/cgroup_subsys.h b/evox_a15_mix2s_cgroupv2/include/linux/cgroup_subsys.h
+diff --git a/evox_a15_mix2s/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
 index 7f4a2a5..ff4cad3 100644
 --- a/evox_a15_mix2s/include/linux/cgroup_subsys.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/cgroup_subsys.h
++++ b/include/linux/cgroup_subsys.h
 @@ -60,6 +60,10 @@ SUBSYS(hugetlb)
  SUBSYS(pids)
  #endif
@@ -1353,10 +1353,10 @@ index 7f4a2a5..ff4cad3 100644
  /*
   * The following subsystems are not supported on the default hierarchy.
   */
-diff --git a/evox_a15_mix2s/include/linux/cpuset.h b/evox_a15_mix2s_cgroupv2/include/linux/cpuset.h
+diff --git a/evox_a15_mix2s/include/linux/cpuset.h b/include/linux/cpuset.h
 index d807fa9..3cfe2d2 100644
 --- a/evox_a15_mix2s/include/linux/cpuset.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
 @@ -56,7 +56,7 @@ static inline void cpuset_dec(void)
  extern int cpuset_init(void);
  extern void cpuset_init_smp(void);
@@ -1375,10 +1375,10 @@ index d807fa9..3cfe2d2 100644
  {
  	partition_sched_domains(1, NULL, NULL);
  }
-diff --git a/evox_a15_mix2s/include/linux/sched/deadline.h b/evox_a15_mix2s_cgroupv2/include/linux/sched/deadline.h
+diff --git a/evox_a15_mix2s/include/linux/sched/deadline.h b/include/linux/sched/deadline.h
 index 9089a2a..975be86 100644
 --- a/evox_a15_mix2s/include/linux/sched/deadline.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/sched/deadline.h
++++ b/include/linux/sched/deadline.h
 @@ -1,5 +1,7 @@
 -#ifndef _SCHED_DEADLINE_H
 -#define _SCHED_DEADLINE_H
@@ -1395,10 +1395,10 @@ index 9089a2a..975be86 100644
  
 -#endif /* _SCHED_DEADLINE_H */
 +#endif /* _LINUX_SCHED_DEADLINE_H */
-diff --git a/evox_a15_mix2s/include/linux/sched/prio.h b/evox_a15_mix2s_cgroupv2/include/linux/sched/prio.h
+diff --git a/evox_a15_mix2s/include/linux/sched/prio.h b/include/linux/sched/prio.h
 index d9cf5a5..2cc450f 100644
 --- a/evox_a15_mix2s/include/linux/sched/prio.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/sched/prio.h
++++ b/include/linux/sched/prio.h
 @@ -1,5 +1,5 @@
 -#ifndef _SCHED_PRIO_H
 -#define _SCHED_PRIO_H
@@ -1413,10 +1413,10 @@ index d9cf5a5..2cc450f 100644
  
 -#endif /* _SCHED_PRIO_H */
 +#endif /* _LINUX_SCHED_PRIO_H */
-diff --git a/evox_a15_mix2s/include/linux/sched/rt.h b/evox_a15_mix2s_cgroupv2/include/linux/sched/rt.h
+diff --git a/evox_a15_mix2s/include/linux/sched/rt.h b/include/linux/sched/rt.h
 index a30b172..3bd6684 100644
 --- a/evox_a15_mix2s/include/linux/sched/rt.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/sched/rt.h
++++ b/include/linux/sched/rt.h
 @@ -1,7 +1,9 @@
 -#ifndef _SCHED_RT_H
 -#define _SCHED_RT_H
@@ -1436,10 +1436,10 @@ index a30b172..3bd6684 100644
  
 -#endif /* _SCHED_RT_H */
 +#endif /* _LINUX_SCHED_RT_H */
-diff --git a/evox_a15_mix2s/include/linux/sched/sysctl.h b/evox_a15_mix2s_cgroupv2/include/linux/sched/sysctl.h
+diff --git a/evox_a15_mix2s/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
 index 9791323..8c7c8b7 100755
 --- a/evox_a15_mix2s/include/linux/sched/sysctl.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/sched/sysctl.h
++++ b/include/linux/sched/sysctl.h
 @@ -1,5 +1,9 @@
 -#ifndef _SCHED_SYSCTL_H
 -#define _SCHED_SYSCTL_H
@@ -1458,10 +1458,10 @@ index 9791323..8c7c8b7 100755
  extern bool is_sched_lib_based_app(pid_t pid);
 -#endif /* _SCHED_SYSCTL_H */
 +#endif /* _LINUX_SCHED_SYSCTL_H */
-diff --git a/evox_a15_mix2s/include/linux/sched.h b/evox_a15_mix2s_cgroupv2/include/linux/sched.h
+diff --git a/evox_a15_mix2s/include/linux/sched.h b/include/linux/sched.h
 index c6875c6..ae461b8 100755
 --- a/evox_a15_mix2s/include/linux/sched.h
-+++ b/evox_a15_mix2s_cgroupv2/include/linux/sched.h
++++ b/include/linux/sched.h
 @@ -1816,6 +1816,8 @@ struct task_struct {
  #ifdef CONFIG_CGROUPS
  	/* disallow userland-initiated cgroup migration */
@@ -1487,10 +1487,10 @@ index c6875c6..ae461b8 100755
  
  #define JOBCTL_TRAP_MASK	(JOBCTL_TRAP_STOP | JOBCTL_TRAP_NOTIFY)
  #define JOBCTL_PENDING_MASK	(JOBCTL_STOP_PENDING | JOBCTL_TRAP_MASK)
-diff --git a/evox_a15_mix2s/init/Kconfig b/evox_a15_mix2s_cgroupv2/init/Kconfig
+diff --git a/evox_a15_mix2s/init/Kconfig b/init/Kconfig
 index 71698d8..c65604c 100644
 --- a/evox_a15_mix2s/init/Kconfig
-+++ b/evox_a15_mix2s_cgroupv2/init/Kconfig
++++ b/init/Kconfig
 @@ -1167,6 +1167,16 @@ config CGROUP_PIDS
  	  since the PIDs limit only affects a process's ability to fork, not to
  	  attach to a cgroup.
@@ -1525,10 +1525,10 @@ index 71698d8..c65604c 100644
  
  	  Say N.
  
-diff --git a/evox_a15_mix2s/kernel/Makefile b/evox_a15_mix2s_cgroupv2/kernel/Makefile
+diff --git a/evox_a15_mix2s/kernel/Makefile b/kernel/Makefile
 index f3a91fa..9fec7d3 100644
 --- a/evox_a15_mix2s/kernel/Makefile
-+++ b/evox_a15_mix2s_cgroupv2/kernel/Makefile
++++ b/kernel/Makefile
 @@ -65,10 +65,7 @@ obj-$(CONFIG_KEXEC) += kexec.o
  obj-$(CONFIG_KEXEC_FILE) += kexec_file.o
  obj-$(CONFIG_BACKTRACE_SELF_TEST) += backtracetest.o
@@ -1541,11 +1541,11 @@ index f3a91fa..9fec7d3 100644
  obj-$(CONFIG_UTS_NS) += utsname.o
  obj-$(CONFIG_USER_NS) += user_namespace.o
  obj-$(CONFIG_PID_NS) += pid_namespace.o
-diff --git a/evox_a15_mix2s_cgroupv2/kernel/cgroup/Makefile b/evox_a15_mix2s_cgroupv2/kernel/cgroup/Makefile
+diff --git a/kernel/cgroup/Makefile b/kernel/cgroup/Makefile
 new file mode 100644
 index 0000000..0a3e87c
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/Makefile
++++ b/kernel/cgroup/Makefile
 @@ -0,0 +1,7 @@
 +obj-y := cgroup.o namespace.o cgroup-v1.o freezer.o
 +
@@ -1554,11 +1554,11 @@ index 0000000..0a3e87c
 +obj-$(CONFIG_CGROUP_RDMA) += rdma.o
 +obj-$(CONFIG_CPUSETS) += cpuset.o
 +obj-$(CONFIG_CGROUP_DEBUG) += debug.o
-diff --git a/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup-internal.h b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup-internal.h
+diff --git a/kernel/cgroup/cgroup-internal.h b/kernel/cgroup/cgroup-internal.h
 new file mode 100644
 index 0000000..90104f8
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup-internal.h
++++ b/kernel/cgroup/cgroup-internal.h
 @@ -0,0 +1,242 @@
 +#ifndef __CGROUP_INTERNAL_H
 +#define __CGROUP_INTERNAL_H
@@ -1802,11 +1802,11 @@ index 0000000..90104f8
 +			     struct cgroup_namespace *ns);
 +
 +#endif /* __CGROUP_INTERNAL_H */
-diff --git a/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup-v1.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup-v1.c
+diff --git a/kernel/cgroup/cgroup-v1.c b/kernel/cgroup/cgroup-v1.c
 new file mode 100644
 index 0000000..fc57613
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup-v1.c
++++ b/kernel/cgroup/cgroup-v1.c
 @@ -0,0 +1,1314 @@
 +#include "cgroup-internal.h"
 +
@@ -3122,13 +3122,13 @@ index 0000000..fc57613
 +	return 1;
 +}
 +__setup("cgroup_no_v1=", cgroup_no_v1);
-diff --git a/evox_a15_mix2s/kernel/cgroup.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup.c
+diff --git a/evox_a15_mix2s/kernel/cgroup.c b/kernel/cgroup/cgroup.c
 similarity index 72%
 rename from evox_a15_mix2s/kernel/cgroup.c
 rename to evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup.c
 index 5c6deb0..46c70ee 100644
 --- a/evox_a15_mix2s/kernel/cgroup.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
 @@ -28,15 +28,13 @@
  
  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -7858,13 +7858,13 @@ index 5c6deb0..46c70ee 100644
 +}
 +subsys_initcall(cgroup_sysfs_init);
 +#endif /* CONFIG_SYSFS */
-diff --git a/evox_a15_mix2s/kernel/cpuset.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cpuset.c
+diff --git a/evox_a15_mix2s/kernel/cpuset.c b/kernel/cgroup/cpuset.c
 similarity index 97%
 rename from evox_a15_mix2s/kernel/cpuset.c
 rename to evox_a15_mix2s_cgroupv2/kernel/cgroup/cpuset.c
 index df64cb9..4890211 100644
 --- a/evox_a15_mix2s/kernel/cpuset.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
 @@ -298,6 +298,16 @@ static DECLARE_WORK(cpuset_hotplug_work, cpuset_hotplug_workfn);
  
  static DECLARE_WAIT_QUEUE_HEAD(cpuset_attach_wq);
@@ -8092,11 +8092,11 @@ index df64cb9..4890211 100644
  	rcu_read_unlock();
  
  	/*
-diff --git a/evox_a15_mix2s_cgroupv2/kernel/cgroup/debug.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/debug.c
+diff --git a/kernel/cgroup/debug.c b/kernel/cgroup/debug.c
 new file mode 100644
 index 0000000..f661b4c
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/debug.c
++++ b/kernel/cgroup/debug.c
 @@ -0,0 +1,382 @@
 +/*
 + * Debug controller
@@ -8480,11 +8480,11 @@ index 0000000..f661b4c
 +	return 1;
 +}
 +__setup("cgroup_debug", enable_cgroup_debug);
-diff --git a/evox_a15_mix2s_cgroupv2/kernel/cgroup/freezer.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/freezer.c
+diff --git a/kernel/cgroup/freezer.c b/kernel/cgroup/freezer.c
 new file mode 100644
 index 0000000..103938f
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/freezer.c
++++ b/kernel/cgroup/freezer.c
 @@ -0,0 +1,315 @@
 +//SPDX-License-Identifier: GPL-2.0
 +#include <linux/cgroup.h>
@@ -8801,13 +8801,13 @@ index 0000000..103938f
 +	if (!applied)
 +		cgroup_file_notify(&cgrp->events_file);
 +}
-diff --git a/evox_a15_mix2s/kernel/cgroup_freezer.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/legacy_freezer.c
+diff --git a/evox_a15_mix2s/kernel/cgroup_freezer.c b/kernel/cgroup/legacy_freezer.c
 similarity index 99%
 rename from evox_a15_mix2s/kernel/cgroup_freezer.c
 rename to evox_a15_mix2s_cgroupv2/kernel/cgroup/legacy_freezer.c
 index 1b72d56..0823679 100644
 --- a/evox_a15_mix2s/kernel/cgroup_freezer.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/legacy_freezer.c
++++ b/kernel/cgroup/legacy_freezer.c
 @@ -268,7 +268,7 @@ static void update_if_frozen(struct cgroup_subsys_state *css)
  	rcu_read_unlock();
  
@@ -8835,11 +8835,11 @@ index 1b72d56..0823679 100644
  	while ((task = css_task_iter_next(&it)))
  		__thaw_task(task);
  	css_task_iter_end(&it);
-diff --git a/evox_a15_mix2s_cgroupv2/kernel/cgroup/namespace.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/namespace.c
+diff --git a/kernel/cgroup/namespace.c b/kernel/cgroup/namespace.c
 new file mode 100644
 index 0000000..86e9bbe
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/namespace.c
++++ b/kernel/cgroup/namespace.c
 @@ -0,0 +1,155 @@
 +#include "cgroup-internal.h"
 +
@@ -8996,13 +8996,13 @@ index 0000000..86e9bbe
 +	return 0;
 +}
 +subsys_initcall(cgroup_namespaces_init);
-diff --git a/evox_a15_mix2s/kernel/cgroup_pids.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/pids.c
+diff --git a/evox_a15_mix2s/kernel/cgroup_pids.c b/kernel/cgroup/pids.c
 similarity index 98%
 rename from evox_a15_mix2s/kernel/cgroup_pids.c
 rename to evox_a15_mix2s_cgroupv2/kernel/cgroup/pids.c
 index b8b898e..6f064cc 100644
 --- a/evox_a15_mix2s/kernel/cgroup_pids.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/pids.c
++++ b/kernel/cgroup/pids.c
 @@ -248,7 +248,7 @@ static void pids_cancel_fork(struct task_struct *task)
  	pids_uncharge(pids, 1);
  }
@@ -9022,11 +9022,11 @@ index b8b898e..6f064cc 100644
  	.dfl_cftypes	= pids_files,
 +	.threaded	= true,
  };
-diff --git a/evox_a15_mix2s_cgroupv2/kernel/cgroup/rdma.c b/evox_a15_mix2s_cgroupv2/kernel/cgroup/rdma.c
+diff --git a/kernel/cgroup/rdma.c b/kernel/cgroup/rdma.c
 new file mode 100644
 index 0000000..defad3c
 --- /dev/null
-+++ b/evox_a15_mix2s_cgroupv2/kernel/cgroup/rdma.c
++++ b/kernel/cgroup/rdma.c
 @@ -0,0 +1,619 @@
 +/*
 + * RDMA resource limiting controller for cgroups.
@@ -9647,10 +9647,10 @@ index 0000000..defad3c
 +	.legacy_cftypes	= rdmacg_files,
 +	.dfl_cftypes	= rdmacg_files,
 +};
-diff --git a/evox_a15_mix2s/kernel/events/core.c b/evox_a15_mix2s_cgroupv2/kernel/events/core.c
+diff --git a/evox_a15_mix2s/kernel/events/core.c b/kernel/events/core.c
 index 547184b..5402560 100644
 --- a/evox_a15_mix2s/kernel/events/core.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/events/core.c
++++ b/kernel/events/core.c
 @@ -11458,5 +11458,12 @@ struct cgroup_subsys perf_event_cgrp_subsys = {
  	.css_alloc	= perf_cgroup_css_alloc,
  	.css_free	= perf_cgroup_css_free,
@@ -9664,10 +9664,10 @@ index 547184b..5402560 100644
 +	.threaded	= true,
  };
  #endif /* CONFIG_CGROUP_PERF */
-diff --git a/evox_a15_mix2s/kernel/exit.c b/evox_a15_mix2s_cgroupv2/kernel/exit.c
+diff --git a/evox_a15_mix2s/kernel/exit.c b/kernel/exit.c
 index 09beccf..5e0ca9c 100644
 --- a/evox_a15_mix2s/kernel/exit.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/exit.c
++++ b/kernel/exit.c
 @@ -178,6 +178,7 @@ repeat:
  	rcu_read_unlock();
  
@@ -9676,10 +9676,10 @@ index 09beccf..5e0ca9c 100644
  
  	write_lock_irq(&tasklist_lock);
  	ptrace_release_task(p);
-diff --git a/evox_a15_mix2s/kernel/fork.c b/evox_a15_mix2s_cgroupv2/kernel/fork.c
+diff --git a/evox_a15_mix2s/kernel/fork.c b/kernel/fork.c
 index 8f7ab49..49d84e1 100644
 --- a/evox_a15_mix2s/kernel/fork.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/fork.c
++++ b/kernel/fork.c
 @@ -1069,7 +1069,9 @@ static int wait_for_vfork_done(struct task_struct *child,
  	int killed;
  
@@ -9690,10 +9690,10 @@ index 8f7ab49..49d84e1 100644
  	freezer_count();
  
  	if (killed) {
-diff --git a/evox_a15_mix2s/kernel/sched/core.c b/evox_a15_mix2s_cgroupv2/kernel/sched/core.c
+diff --git a/evox_a15_mix2s/kernel/sched/core.c b/kernel/sched/core.c
 index 09981c5..b2b8e34 100755
 --- a/evox_a15_mix2s/kernel/sched/core.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/sched/core.c
++++ b/kernel/sched/core.c
 @@ -8044,6 +8044,12 @@ static void cpuset_cpu_active(void)
  		 * cpuset configurations.
  		 */
@@ -9721,10 +9721,10 @@ index 09981c5..b2b8e34 100755
  		num_cpus_frozen++;
  		partition_sched_domains(1, NULL, NULL);
  	}
-diff --git a/evox_a15_mix2s/kernel/signal.c b/evox_a15_mix2s_cgroupv2/kernel/signal.c
+diff --git a/evox_a15_mix2s/kernel/signal.c b/kernel/signal.c
 index 4d0f341..e56d07a 100644
 --- a/evox_a15_mix2s/kernel/signal.c
-+++ b/evox_a15_mix2s_cgroupv2/kernel/signal.c
++++ b/kernel/signal.c
 @@ -36,8 +36,7 @@
  #include <linux/compat.h>
  #include <linux/cn_proc.h>
@@ -9859,10 +9859,10 @@ index 4d0f341..e56d07a 100644
  
  		/*
  		 * Anything else is fatal, maybe with a core dump.
-diff --git a/evox_a15_mix2s/net/core/netclassid_cgroup.c b/evox_a15_mix2s_cgroupv2/net/core/netclassid_cgroup.c
+diff --git a/evox_a15_mix2s/net/core/netclassid_cgroup.c b/net/core/netclassid_cgroup.c
 index db65b0c..5a235ea 100644
 --- a/evox_a15_mix2s/net/core/netclassid_cgroup.c
-+++ b/evox_a15_mix2s_cgroupv2/net/core/netclassid_cgroup.c
++++ b/net/core/netclassid_cgroup.c
 @@ -94,12 +94,13 @@ static void update_classid_task(struct task_struct *p, u32 classid)
  	};
  	unsigned int fd = 0;
@@ -9879,10 +9879,10 @@ index db65b0c..5a235ea 100644
  }
  
  static void cgrp_attach(struct cgroup_taskset *tset)
-diff --git a/evox_a15_mix2s/tools/perf/util/cgroup.c b/evox_a15_mix2s_cgroupv2/tools/perf/util/cgroup.c
+diff --git a/evox_a15_mix2s/tools/perf/util/cgroup.c b/tools/perf/util/cgroup.c
 index 5bc2b92..3415682 100644
 --- a/evox_a15_mix2s/tools/perf/util/cgroup.c
-+++ b/evox_a15_mix2s_cgroupv2/tools/perf/util/cgroup.c
++++ b/tools/perf/util/cgroup.c
 @@ -12,8 +12,8 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
  {
  	FILE *fp;
