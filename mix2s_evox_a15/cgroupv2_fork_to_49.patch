@@ -747,7 +747,7 @@ index 4cad394..911cbd4 100644
  CONFIG_SCHED_CORE_ROTATE=y
  CONFIG_NAMESPACES=y
 diff --git a/fs/kernfs/mount.c b/fs/kernfs/mount.c
-index d5b149a..07a0b7d 100644
+index d5b149a..4388ee9 100644
 --- a/fs/kernfs/mount.c
 +++ b/fs/kernfs/mount.c
 @@ -123,8 +123,10 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
@@ -762,7 +762,7 @@ index d5b149a..07a0b7d 100644
  
  	do {
  		struct dentry *dtmp;
-@@ -133,7 +135,8 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
+@@ -133,8 +135,10 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
  		if (kn == knparent)
  			return dentry;
  		kntmp = find_next_ancestor(kn, knparent);
@@ -770,8 +770,10 @@ index d5b149a..07a0b7d 100644
 +		if (WARN_ON(!kntmp)) {
 +			dput(dentry);
  			return ERR_PTR(-EINVAL);
++		}
  		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
  					       strlen(kntmp->name));
+ 		dput(dentry);
 diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
 index 35a28e4..ab429b4 100644
 --- a/include/linux/cgroup-defs.h
