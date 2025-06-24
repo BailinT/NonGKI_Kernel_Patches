@@ -3515,7 +3515,7 @@ index 2035610..c43e7b2 100644
  
  err_init_binder_device_failed:
 diff --git a/drivers/android/binder_alloc.c b/drivers/android/binder_alloc.c
-index 5addcd5..ace6060 100644
+index 5addcd5..bac57d9 100644
 --- a/drivers/android/binder_alloc.c
 +++ b/drivers/android/binder_alloc.c
 @@ -1,23 +1,13 @@
@@ -3676,7 +3676,7 @@ index 5addcd5..ace6060 100644
  		continue;
  
  err_vm_insert_page_failed:
-@@ -309,16 +300,81 @@ err_vm_insert_page_failed:
+@@ -309,16 +300,45 @@ err_vm_insert_page_failed:
  		page->page_ptr = NULL;
  err_alloc_page_failed:
  err_page_ptr_cleared:
@@ -3693,42 +3693,6 @@ index 5addcd5..ace6060 100644
  	return vma ? -ENOMEM : -ESRCH;
  }
  
-+static void debug_low_async_space_locked(struct binder_alloc *alloc, int pid)
-+{
-+	/*
-+	 * Find the amount and size of buffers allocated by the current caller;
-+	 * The idea is that once we cross the threshold, whoever is responsible
-+	 * for the low async space is likely to try to send another async txn,
-+	 * and at some point we'll catch them in the act. This is more efficient
-+	 * than keeping a map per pid.
-+	 */
-+	struct rb_node *n = alloc->free_buffers.rb_node;
-+	struct binder_buffer *buffer;
-+	size_t total_alloc_size = 0;
-+	size_t num_buffers = 0;
-+
-+	for (n = rb_first(&alloc->allocated_buffers); n != NULL;
-+		 n = rb_next(n)) {
-+		buffer = rb_entry(n, struct binder_buffer, rb_node);
-+		if (buffer->pid != pid)
-+			continue;
-+		if (!buffer->async_transaction)
-+			continue;
-+		total_alloc_size += binder_alloc_buffer_size(alloc, buffer)
-+			+ sizeof(struct binder_buffer);
-+		num_buffers++;
-+	}
-+
-+	/*
-+	 * Warn if this pid has more than 50 transactions, or more than 50% of
-+	 * async space (which is 25% of total buffer size).
-+	 */
-+	if (num_buffers > 50 || total_alloc_size > alloc->buffer_size / 4) {
-+		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
-+			     "%d: pid %d spamming oneway? %zd buffers allocated for a total size of %zd\n",
-+			      alloc->pid, pid, num_buffers, total_alloc_size);
-+	}
-+
 +static inline void binder_alloc_set_vma(struct binder_alloc *alloc,
 +		struct vm_area_struct *vma)
 +{
@@ -3760,7 +3724,7 @@ index 5addcd5..ace6060 100644
  static void debug_low_async_space_locked(struct binder_alloc *alloc, int pid)
  {
  	/*
-@@ -373,9 +429,10 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
+@@ -373,9 +393,10 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
  	size_t size, data_offsets_size;
  	int ret;
  
@@ -3774,7 +3738,7 @@ index 5addcd5..ace6060 100644
  		return ERR_PTR(-ESRCH);
  	}
  
-@@ -447,11 +504,14 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
+@@ -447,11 +468,14 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
  			if (buffer_size > largest_free_size)
  				largest_free_size = buffer_size;
  		}
@@ -3794,7 +3758,7 @@ index 5addcd5..ace6060 100644
  		return ERR_PTR(-ENOSPC);
  	}
  	if (n == NULL) {
-@@ -638,7 +698,7 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
+@@ -638,7 +662,7 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
  	BUG_ON(buffer->user_data > alloc->buffer + alloc->buffer_size);
  
  	if (buffer->async_transaction) {
@@ -3803,7 +3767,7 @@ index 5addcd5..ace6060 100644
  
  		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
  			     "%d: binder_free_buf size %zd async free %zd\n",
-@@ -722,24 +782,25 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
+@@ -722,24 +746,25 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
  	struct binder_buffer *buffer;
  
  	mutex_lock(&binder_alloc_mmap_lock);
@@ -3834,7 +3798,7 @@ index 5addcd5..ace6060 100644
  
  	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
  	if (!buffer) {
-@@ -753,10 +814,7 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
+@@ -753,10 +778,7 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
  	buffer->free = 1;
  	binder_insert_free_buffer(alloc, buffer);
  	alloc->free_async_space = alloc->buffer_size / 2;
@@ -3846,7 +3810,7 @@ index 5addcd5..ace6060 100644
  	atomic_inc(&alloc->vma_vm_mm->mm_count);
  
  	return 0;
-@@ -765,12 +823,15 @@ err_alloc_buf_struct_failed:
+@@ -765,12 +787,15 @@ err_alloc_buf_struct_failed:
  	kfree(alloc->pages);
  	alloc->pages = NULL;
  err_alloc_pages_failed:
@@ -3865,7 +3829,7 @@ index 5addcd5..ace6060 100644
  	return ret;
  }
  
-@@ -781,10 +842,10 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
+@@ -781,10 +806,10 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
  	int buffers, page_count;
  	struct binder_buffer *buffer;
  
@@ -3878,7 +3842,7 @@ index 5addcd5..ace6060 100644
  	while ((n = rb_first(&alloc->allocated_buffers))) {
  		buffer = rb_entry(n, struct binder_buffer, rb_node);
  
-@@ -886,14 +947,20 @@ void binder_alloc_print_pages(struct seq_file *m,
+@@ -886,14 +911,20 @@ void binder_alloc_print_pages(struct seq_file *m,
  	int free = 0;
  
  	mutex_lock(&alloc->mutex);
@@ -3907,7 +3871,7 @@ index 5addcd5..ace6060 100644
  	}
  	mutex_unlock(&alloc->mutex);
  	seq_printf(m, "  pages: %d:%d:%d\n", active, lru, free);
-@@ -929,7 +996,7 @@ int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
+@@ -929,7 +960,7 @@ int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
   */
  void binder_alloc_vma_close(struct binder_alloc *alloc)
  {
@@ -3916,7 +3880,7 @@ index 5addcd5..ace6060 100644
  }
  
  /**
-@@ -945,6 +1012,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
+@@ -945,6 +976,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
  				       struct list_lru_one *lru,
  				       spinlock_t *lock,
  				       void *cb_arg)
@@ -3924,7 +3888,7 @@ index 5addcd5..ace6060 100644
  {
  	struct mm_struct *mm = NULL;
  	struct binder_lru_page *page = container_of(item,
-@@ -968,35 +1036,35 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
+@@ -968,35 +1000,35 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
  	mm = alloc->vma_vm_mm;
  	if (!mmget_not_zero(mm))
  		goto err_mmget;
@@ -3970,7 +3934,7 @@ index 5addcd5..ace6060 100644
  	mmput_async(mm);
  err_mmget:
  err_page_already_freed:
-@@ -1195,15 +1263,16 @@ binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
+@@ -1195,15 +1227,16 @@ binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
  	return 0;
  }
  
@@ -3994,7 +3958,7 @@ index 5addcd5..ace6060 100644
  
  	while (bytes) {
  		unsigned long size;
-@@ -1231,25 +1300,26 @@ static void binder_alloc_do_buffer_copy(struct binder_alloc *alloc,
+@@ -1231,25 +1264,26 @@ static void binder_alloc_do_buffer_copy(struct binder_alloc *alloc,
  		ptr = ptr + size;
  		buffer_offset += size;
  	}
@@ -4121,7 +4085,7 @@ index c839c49..c2b323b 100644
   */
  
  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-diff --git a_binder_bak/drivers/android/binder_internal.h b/drivers/android/binder_internal.h
+diff --git a/drivers/android/binder_internal.h b/drivers/android/binder_internal.h
 new file mode 100644
 index 0000000..2ca7f82
 --- /dev/null
@@ -4853,7 +4817,7 @@ index 7674231..a70e237 100644
  );
  
  DEFINE_EVENT(binder_buffer_class, binder_transaction_alloc_buf,
-diff --git a_binder_bak/drivers/android/binderfs.c b/drivers/android/binderfs.c
+diff --git a/drivers/android/binderfs.c b/drivers/android/binderfs.c
 new file mode 100644
 index 0000000..f303106
 --- /dev/null
@@ -5705,6 +5669,31 @@ index 442b54a..693cf13 100644
  
  extern struct kmem_cache *files_cachep;
  
+diff --git a/include/linux/seq_file.h b/include/linux/seq_file.h
+index e305b66..d75248d 100644
+--- a/include/linux/seq_file.h
++++ b/include/linux/seq_file.h
+@@ -139,6 +139,20 @@ void *__seq_open_private(struct file *, const struct seq_operations *, int);
+ int seq_open_private(struct file *, const struct seq_operations *, int);
+ int seq_release_private(struct inode *, struct file *);
+ 
++#define DEFINE_SHOW_ATTRIBUTE(__name)					\
++static int __name ## _open(struct inode *inode, struct file *file)	\
++{									\
++	return single_open(file, __name ## _show, inode->i_private);	\
++}									\
++									\
++static const struct file_operations __name ## _fops = {			\
++	.owner		= THIS_MODULE,					\
++	.open		= __name ## _open,				\
++	.read		= seq_read,					\
++	.llseek		= seq_lseek,					\
++	.release	= single_release,				\
++}
++
+ static inline struct user_namespace *seq_user_ns(struct seq_file *seq)
+ {
+ #ifdef CONFIG_USER_NS
 diff --git a/include/uapi/linux/android/binder.h b/include/uapi/linux/android/binder.h
 index 3558b58..14340b0 100755
 --- a/include/uapi/linux/android/binder.h
@@ -5814,7 +5803,7 @@ index 3558b58..14340b0 100755
  };
  
  enum binder_driver_command_protocol {
-diff --git a_binder_bak/include/uapi/linux/android/binderfs.h b/include/uapi/linux/android/binderfs.h
+diff --git a/include/uapi/linux/android/binderfs.h b/include/uapi/linux/android/binderfs.h
 new file mode 100644
 index 0000000..8741047
 --- /dev/null
