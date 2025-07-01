@@ -1,0 +1,38 @@
+--- a/fs/proc/cmdline.c
++++ b/fs/proc/cmdline.c
+@@ -4,6 +4,10 @@
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <asm/setup.h>
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
++#endif
++
+ #ifdef CONFIG_PROC_CMDLINE_APPEND_ANDROID_FSTAB_SUFFIX
+ #include <linux/of.h>
+ #endif
+@@ -66,6 +70,12 @@ static void proc_command_line_init(void)
+ 
+ static int cmdline_proc_show(struct seq_file *m, void *v)
+ {
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	if (!susfs_spoof_cmdline_or_bootconfig(m)) {
++		seq_putc(m, '\n');
++		return 0;
++	}
++#endif
+ 	seq_puts(m, proc_command_line);
+ 	seq_putc(m, '\n');
+ 	return 0;
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -21,6 +21,9 @@
+ #include <linux/pkeys.h>
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
