@@ -1,0 +1,73 @@
+diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
+index 7fe9cd4..011cca5 100644
+--- a/fs/notify/fdinfo.c
++++ b/fs/notify/fdinfo.c
+@@ -107,7 +107,37 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+ 		 * least one bit (FS_EVENT_ON_CHILD) which is
+ 		 * used only internally to the kernel.
+ 		 */
+-		u32 mask = mark->mask & IN_ALL_EVENTS;
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++		if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) &&
++				unlikely(inode->i_state & INODE_STATE_SUS_KSTAT)) {
++			struct path path;
++			char *pathname = kmalloc(PAGE_SIZE, GFP_KERNEL);
++			char *dpath;
++			if (!pathname) {
++				goto out_seq_printf;
++			}
++			dpath = d_path(&file->f_path, pathname, PAGE_SIZE);
++			if (!dpath) {
++				goto out_free_pathname;
++			}
++			if (kern_path(dpath, 0, &path)) {
++				goto out_free_pathname;
++			}
++			seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
++			   inode_mark->wd, path.dentry->d_inode->i_ino, path.dentry->d_inode->i_sb->s_dev,
++			   inotify_mark_user_mask(mark));
++			show_mark_fhandle(m, path.dentry->d_inode);
++			seq_putc(m, '\n');
++			iput(inode);
++			path_put(&path);
++			kfree(pathname);
++			return;
++out_free_pathname:
++			kfree(pathname);
++		}
++out_seq_printf:
++#endif
++		// u32 mask = mark->mask & IN_ALL_EVENTS;
+ 		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
+ 			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
+ 			   mask, mark->ignored_mask);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 4d436c8..d10e48b 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -20,6 +20,9 @@
+ #include <linux/uaccess.h>
+ #include <linux/mm_inline.h>
+ #include <linux/sched/signal.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
+diff --git a/fs/readdir.c b/fs/readdir.c
+index 119a838..6cad171 100644
+--- a/fs/readdir.c
++++ b/fs/readdir.c
+@@ -412,6 +412,11 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
+ 		buf->result = -EOVERFLOW;
+ 		return -EOVERFLOW;
+ 	}
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
++		return 0;
++	}
++#endif
+ 	buf->result++;
+ 	dirent = buf->dirent;
+ 	if (!access_ok(VERIFY_WRITE, dirent,
