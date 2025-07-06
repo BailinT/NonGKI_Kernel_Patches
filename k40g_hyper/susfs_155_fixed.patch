@@ -1,11 +1,11 @@
-diff --git a/hyper_a13_k40g_bak/fs/notify/fdinfo.c b/hyper_a13_k40g/fs/notify/fdinfo.c
-index 7fe9cd4..4f7e0a1 100644
---- a/hyper_a13_k40g_bak/fs/notify/fdinfo.c
-+++ b/hyper_a13_k40g/fs/notify/fdinfo.c
-@@ -101,6 +101,36 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
- 	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
- 	inode = igrab(mark->connector->inode);
- 	if (inode) {
+diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
+index 7fe9cd4..0853f96 100644
+--- a/fs/notify/fdinfo.c
++++ b/fs/notify/fdinfo.c
+@@ -107,6 +107,36 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+ 		 * least one bit (FS_EVENT_ON_CHILD) which is
+ 		 * used only internally to the kernel.
+ 		 */
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +		if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) &&
 +				unlikely(inode->i_state & INODE_STATE_SUS_KSTAT)) {
@@ -36,13 +36,13 @@ index 7fe9cd4..4f7e0a1 100644
 +		}
 +out_seq_printf:
 +#endif
- 		/*
- 		 * IN_ALL_EVENTS represents all of the mask bits
- 		 * that we expose to userspace.  There is at
-diff --git a/hyper_a13_k40g_bak/fs/proc/task_mmu.c b/hyper_a13_k40g/fs/proc/task_mmu.c
+ 		u32 mask = mark->mask & IN_ALL_EVENTS;
+ 		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
+ 			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
 index 4d436c8..d10e48b 100644
---- a/hyper_a13_k40g_bak/fs/proc/task_mmu.c
-+++ b/hyper_a13_k40g/fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
 @@ -20,6 +20,9 @@
  #include <linux/uaccess.h>
  #include <linux/mm_inline.h>
@@ -53,19 +53,19 @@ index 4d436c8..d10e48b 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-diff --git a/hyper_a13_k40g_bak/fs/readdir.c b/hyper_a13_k40g/fs/readdir.c
-index 119a838..6cad171 100644
---- a/hyper_a13_k40g_bak/fs/readdir.c
-+++ b/hyper_a13_k40g/fs/readdir.c
-@@ -412,6 +412,11 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
- 		buf->result = -EOVERFLOW;
- 		return -EOVERFLOW;
- 	}
+diff --git a/fs/readdir.c b/fs/readdir.c
+index 119a838..aef4b43 100644
+--- a/fs/readdir.c
++++ b/fs/readdir.c
+@@ -407,6 +407,11 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
+ 
+ 	if (buf->result)
+ 		return -EINVAL;
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
 +		return 0;
 +	}
 +#endif
- 	buf->result++;
- 	dirent = buf->dirent;
- 	if (!access_ok(VERIFY_WRITE, dirent,
+ 	d_ino = ino;
+ 	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+ 		buf->result = -EOVERFLOW;

@@ -15,10 +15,10 @@ index df71842..165439e 100644
  		*seqp = seq;
  		return dentry;
 diff --git a/fs/readdir.c b/fs/readdir.c
-index 4c49c6e..130d101 100644
+index e016116..130d101 100644
 --- a/fs/readdir.c
 +++ b/fs/readdir.c
-@@ -565,6 +565,9 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
+@@ -565,14 +565,12 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
  		container_of(ctx, struct compat_readdir_callback, ctx);
  	struct compat_old_linux_dirent __user *dirent;
  	compat_ulong_t d_ino;
@@ -28,31 +28,11 @@ index 4c49c6e..130d101 100644
  
  	if (buf->result)
  		return -EINVAL;
-@@ -574,9 +577,26 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
- 		return -EOVERFLOW;
- 	}
- #ifdef CONFIG_KSU_SUSFS_SUS_PATH
+-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 -	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
-+	if (buf->is_base_dentry_android_data_root_dir) {
-+		if (susfs_is_sus_android_data_d_name_found(name)) {
-+			return 0;
-+		}
-+	} else if (buf->is_base_dentry_sdcard_root_dir) {
-+		if (susfs_is_sus_sdcard_d_name_found(name)) {
-+			return 0;
-+		}
-+	}
-+
-+	inode = ilookup(buf->sb, ino);
-+	if (!inode) {
-+		goto orig_flow;
-+	}
-+	if (susfs_is_inode_sus_path(inode)) {
-+		iput(inode);
- 		return 0;
- 	}
-+	iput(inode);
-+orig_flow:
- #endif
- 	buf->result++;
- 	dirent = buf->dirent;
+-		return 0;
+-	}
+-#endif
+ 	d_ino = ino;
+ 	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+ 		buf->result = -EOVERFLOW;
