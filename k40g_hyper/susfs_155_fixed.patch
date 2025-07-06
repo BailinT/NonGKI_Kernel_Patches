@@ -1,5 +1,5 @@
 diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
-index 7fe9cd4..4c0d5cb 100644
+index 7fe9cd4..734a728 100644
 --- a/fs/notify/fdinfo.c
 +++ b/fs/notify/fdinfo.c
 @@ -108,6 +108,36 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
@@ -24,7 +24,7 @@ index 7fe9cd4..4c0d5cb 100644
 +			}
 +			seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
 +			   inode_mark->wd, path.dentry->d_inode->i_ino, path.dentry->d_inode->i_sb->s_dev,
-+			   inotify_mark_user_mask(mark));
++			   mask, mark->ignored_mask);
 +			show_mark_fhandle(m, path.dentry->d_inode);
 +			seq_putc(m, '\n');
 +			iput(inode);
