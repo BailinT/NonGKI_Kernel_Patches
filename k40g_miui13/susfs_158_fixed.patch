@@ -1,0 +1,38 @@
+diff --git a/fs/dcache.c b/fs/dcache.c
+index df71842..165439e 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -2225,11 +2225,6 @@ seqretry:
+ 				continue;
+ 			if (dentry_cmp(dentry, str, hashlen_len(hashlen)) != 0)
+ 				continue;
+-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+-			if (dentry->d_inode && unlikely(dentry->d_inode->i_state & INODE_STATE_SUS_PATH) && likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC)) {
+-				continue;
+-			}
+-#endif
+ 		}
+ 		*seqp = seq;
+ 		return dentry;
+diff --git a/fs/readdir.c b/fs/readdir.c
+index e016116..130d101 100644
+--- a/fs/readdir.c
++++ b/fs/readdir.c
+@@ -565,14 +565,12 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
+ 		container_of(ctx, struct compat_readdir_callback, ctx);
+ 	struct compat_old_linux_dirent __user *dirent;
+ 	compat_ulong_t d_ino;
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	struct inode *inode;
++#endif
+ 
+ 	if (buf->result)
+ 		return -EINVAL;
+-#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+-	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
+-		return 0;
+-	}
+-#endif
+ 	d_ino = ino;
+ 	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+ 		buf->result = -EOVERFLOW;
