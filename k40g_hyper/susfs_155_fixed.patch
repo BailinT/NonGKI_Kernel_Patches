@@ -1,7 +1,7 @@
-diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
+diff --git a/hyper_a13_k40g_bak/fs/notify/fdinfo.c b/hyper_a13_k40g/fs/notify/fdinfo.c
 index 7fe9cd4..4f7e0a1 100644
---- a/fs/notify/fdinfo.c
-+++ b/fs/notify/fdinfo.c
+--- a/hyper_a13_k40g_bak/fs/notify/fdinfo.c
++++ b/hyper_a13_k40g/fs/notify/fdinfo.c
 @@ -101,6 +101,36 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
  	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
  	inode = igrab(mark->connector->inode);
@@ -39,10 +39,10 @@ index 7fe9cd4..4f7e0a1 100644
  		/*
  		 * IN_ALL_EVENTS represents all of the mask bits
  		 * that we expose to userspace.  There is at
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+diff --git a/hyper_a13_k40g_bak/fs/proc/task_mmu.c b/hyper_a13_k40g/fs/proc/task_mmu.c
 index 4d436c8..d10e48b 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
+--- a/hyper_a13_k40g_bak/fs/proc/task_mmu.c
++++ b/hyper_a13_k40g/fs/proc/task_mmu.c
 @@ -20,6 +20,9 @@
  #include <linux/uaccess.h>
  #include <linux/mm_inline.h>
@@ -53,19 +53,19 @@ index 4d436c8..d10e48b 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-diff --git a/fs/readdir.c b/fs/readdir.c
-index 119a838..aef4b43 100644
---- a/fs/readdir.c
-+++ b/fs/readdir.c
-@@ -407,6 +407,11 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
- 
- 	if (buf->result)
- 		return -EINVAL;
+diff --git a/hyper_a13_k40g_bak/fs/readdir.c b/hyper_a13_k40g/fs/readdir.c
+index 119a838..6cad171 100644
+--- a/hyper_a13_k40g_bak/fs/readdir.c
++++ b/hyper_a13_k40g/fs/readdir.c
+@@ -412,6 +412,11 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
+ 		buf->result = -EOVERFLOW;
+ 		return -EOVERFLOW;
+ 	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
 +		return 0;
 +	}
 +#endif
- 	d_ino = ino;
- 	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
- 		buf->result = -EOVERFLOW;
+ 	buf->result++;
+ 	dirent = buf->dirent;
+ 	if (!access_ok(VERIFY_WRITE, dirent,
