@@ -1,0 +1,71 @@
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 436084d..a4dac1f 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -21,6 +21,9 @@
+ #include <linux/pkeys.h>
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
+diff --git a/fs/readdir.c b/fs/readdir.c
+index 38740ef..987e3d8 100644
+--- a/fs/readdir.c
++++ b/fs/readdir.c
+@@ -414,6 +414,11 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
+ 
+ 	if (buf->result)
+ 		return -EINVAL;
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) && susfs_sus_ino_for_filldir64(ino)) {
++		return 0;
++	}
++#endif
+ 	d_ino = ino;
+ 	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+ 		buf->result = -EOVERFLOW;
+diff --git a/include/linux/mount.h b/include/linux/mount.h
+index 6645650..b5ba150 100644
+--- a/include/linux/mount.h
++++ b/include/linux/mount.h
+@@ -68,6 +68,9 @@ struct vfsmount {
+ 	struct dentry *mnt_root;	/* root of the mounted tree */
+ 	struct super_block *mnt_sb;	/* pointer to superblock */
+ 	int mnt_flags;
++#if defined(CONFIG_KSU_SUSFS) && !defined(ANDROID_KABI_RESERVE)
++	u64 susfs_mnt_id_backup;
++#endif
+ 	void *data;
+ } __randomize_layout;
+ 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 723db73..85babf2 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1262,6 +1262,9 @@ struct task_struct {
+ #endif
+ #ifdef CONFIG_PERF_EVENTS
+ 	struct perf_event_context	*perf_event_ctxp[perf_nr_task_contexts];
++#if defined(CONFIG_KSU_SUSFS)
++	u64 susfs_task_state;
++#endif
+ 	struct mutex			perf_event_mutex;
+ 	struct list_head		perf_event_list;
+ #endif
+@@ -1476,6 +1479,12 @@ struct task_struct {
+ 	 * New fields for task_struct should be added above here, so that
+ 	 * they are included in the randomized portion of task_struct.
+ 	 */
++#if defined(CONFIG_KSU_SUSFS) && !defined(ANDROID_KABI_RESERVE)
++	u64 susfs_task_state;
++#endif
++#if defined(CONFIG_KSU_SUSFS) && !defined(ANDROID_KABI_RESERVE)
++	u64 susfs_last_fake_mnt_id;
++#endif
+ 	randomized_struct_fields_end
+ 
+ 	/* CPU-specific state of this task: */
