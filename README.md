@@ -1,2 +1,0 @@
-# NonGKI_Kernel_Patches
-NonGKI_Kernel_Patches
