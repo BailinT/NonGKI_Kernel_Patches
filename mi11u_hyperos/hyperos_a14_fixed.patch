@@ -77,3 +77,28 @@
  	void *data;
  } __randomize_layout;
  
+diff --git a/fs/stat.c b/fs/stat.c
+index 8b9f435..7490376 100644
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -17,6 +17,9 @@
+ #include <linux/syscalls.h>
+ #include <linux/pagemap.h>
+ #include <linux/compat.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MOUNT)
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <linux/uaccess.h>
+ #include <asm/unistd.h>
+@@ -24,6 +27,10 @@
+ #include <../drivers/kernelsu/ksu_trace.h>
+ #endif
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++extern void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
++#endif
++
+ /**
+  * generic_fillattr - Fill in the basic attributes from the inode struct
+  * @inode: Inode to use as the source
