@@ -1,0 +1,963 @@
+diff --git a/drivers/android/Kconfig b/drivers/android/Kconfig
+index bb2a5b5..432e9ad 100644
+--- a/drivers/android/Kconfig
++++ b/drivers/android/Kconfig
+@@ -1,3 +1,4 @@
++# SPDX-License-Identifier: GPL-2.0
+ menu "Android"
+ 
+ config ANDROID
+@@ -31,19 +32,6 @@ config ANDROID_BINDER_DEVICES
+ 	  created. Each binder device has its own context manager, and is
+ 	  therefore logically separated from the other devices.
+ 
+-config ANDROID_BINDER_IPC_32BIT
+-	bool "Android Binder IPC 32BIT Driver"
+-	depends on !64BIT && ANDROID_BINDER_IPC
+-	default n
+-	---help---
+-	  The Binder API has been changed to support both 32 and 64bit
+-	  applications in a mixed environment.
+-
+-	  Enable this to support an old 32-bit Android user-space (v4.4 and
+-	  earlier).
+-
+-	  Note that enabling this will break newer Android user-space.
+-
+ config ANDROID_BINDER_IPC_SELFTEST
+ 	bool "Android Binder IPC Driver Selftest"
+ 	depends on ANDROID_BINDER_IPC
+diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+index 2035610..9fc78fc 100644
+--- a/drivers/android/binder.c
++++ b/drivers/android/binder.c
+@@ -51,7 +51,6 @@
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+-#include <asm/cacheflush.h>
+ #include <linux/fdtable.h>
+ #include <linux/file.h>
+ #include <linux/freezer.h>
+@@ -70,6 +69,13 @@
+ #include <linux/pid_namespace.h>
+ #include <linux/security.h>
+ #include <linux/spinlock.h>
++#include <linux/ratelimit.h>
++
++#include <uapi/linux/android/binder.h>
++#include <uapi/linux/eventpoll.h>
++
++#include <asm/cacheflush.h>
++
+ #include "binder_alloc.h"
+ #include "binder_trace.h"
+ 
+@@ -115,8 +121,6 @@ BINDER_DEBUG_ENTRY(proc);
+ 
+ #define FORBIDDEN_MMAP_FLAGS                (VM_WRITE)
+ 
+-#define BINDER_SMALL_BUF_SIZE (PAGE_SIZE * 64)
+-
+ enum {
+ 	BINDER_DEBUG_USER_ERROR             = 1U << 0,
+ 	BINDER_DEBUG_FAILED_TRANSACTION     = 1U << 1,
+@@ -139,7 +143,7 @@ static uint32_t binder_debug_mask = BINDER_DEBUG_USER_ERROR |
+ module_param_named(debug_mask, binder_debug_mask, uint, 0644);
+ 
+ static char *binder_devices_param = CONFIG_ANDROID_BINDER_DEVICES;
+-module_param_named(devices, binder_devices_param, charp, S_IRUGO);
++module_param_named(devices, binder_devices_param, charp, 0444);
+ 
+ static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
+ static int binder_stop_on_user_error;
+@@ -160,13 +164,13 @@ module_param_call(stop_on_user_error, binder_set_stop_on_user_error,
+ #define binder_debug(mask, x...) \
+ 	do { \
+ 		if (binder_debug_mask & mask) \
+-			pr_info(x); \
++			pr_info_ratelimited(x); \
+ 	} while (0)
+ 
+ #define binder_user_error(x...) \
+ 	do { \
+ 		if (binder_debug_mask & BINDER_DEBUG_USER_ERROR) \
+-			pr_info(x); \
++			pr_info_ratelimited(x); \
+ 		if (binder_stop_on_user_error) \
+ 			binder_stop_on_user_error = 2; \
+ 	} while (0)
+@@ -528,8 +532,7 @@ struct binder_priority {
+  * @requested_threads_started: number binder threads started
+  *                        (protected by @inner_lock)
+  * @tmp_ref:              temporary reference to indicate proc is in use
+- *                        (atomic since @proc->inner_lock cannot
+- *                        always be acquired)
++ *                        (protected by @inner_lock)
+  * @default_priority:     default scheduler priority
+  *                        (invariant after initialized)
+  * @debugfs_entry:        debugfs node
+@@ -564,7 +567,7 @@ struct binder_proc {
+ 	int max_threads;
+ 	int requested_threads;
+ 	int requested_threads_started;
+-	atomic_t tmp_ref;
++	int tmp_ref;
+ 	struct binder_priority default_priority;
+ 	struct dentry *debugfs_entry;
+ 	struct binder_alloc alloc;
+@@ -871,6 +874,7 @@ static void
+ binder_enqueue_deferred_thread_work_ilocked(struct binder_thread *thread,
+ 					    struct binder_work *work)
+ {
++	WARN_ON(!list_empty(&thread->waiting_thread_node));
+ 	binder_enqueue_work_ilocked(work, &thread->todo);
+ }
+ 
+@@ -888,6 +892,7 @@ static void
+ binder_enqueue_thread_work_ilocked(struct binder_thread *thread,
+ 				   struct binder_work *work)
+ {
++	WARN_ON(!list_empty(&thread->waiting_thread_node));
+ 	binder_enqueue_work_ilocked(work, &thread->todo);
+ 	thread->process_todo = true;
+ }
+@@ -1417,8 +1422,7 @@ static int binder_inc_node_nilocked(struct binder_node *node, int strong,
+ 			if (target_list == NULL &&
+ 			    node->internal_strong_refs == 0 &&
+ 			    !(node->proc &&
+-			      node == node->proc->context->
+-				      binder_context_mgr_node &&
++			      node == node->proc->context->binder_context_mgr_node &&
+ 			      node->has_strong_ref)) {
+ 				pr_err("invalid inc strong node for %d\n",
+ 					node->debug_id);
+@@ -1428,19 +1432,12 @@ static int binder_inc_node_nilocked(struct binder_node *node, int strong,
+ 		} else
+ 			node->local_strong_refs++;
+ 		if (!node->has_strong_ref && target_list) {
++			struct binder_thread *thread = container_of(target_list,
++						    struct binder_thread, todo);
+ 			binder_dequeue_work_ilocked(&node->work);
+-			/*
+-			 * Note: this function is the only place where we queue
+-			 * directly to a thread->todo without using the
+-			 * corresponding binder_enqueue_thread_work() helper
+-			 * functions; in this case it's ok to not set the
+-			 * process_todo flag, since we know this node work will
+-			 * always be followed by other work that starts queue
+-			 * processing: in case of synchronous transactions, a
+-			 * BR_REPLY or BR_ERROR; in case of oneway
+-			 * transactions, a BR_TRANSACTION_COMPLETE.
+-			 */
+-			binder_enqueue_work_ilocked(&node->work, target_list);
++			BUG_ON(&thread->todo != target_list);
++			binder_enqueue_deferred_thread_work_ilocked(thread,
++								   &node->work);
+ 		}
+ 	} else {
+ 		if (!internal)
+@@ -2066,9 +2063,9 @@ static void binder_thread_dec_tmpref(struct binder_thread *thread)
+ static void binder_proc_dec_tmpref(struct binder_proc *proc)
+ {
+ 	binder_inner_proc_lock(proc);
+-	atomic_dec(&proc->tmp_ref);
++	proc->tmp_ref--;
+ 	if (proc->is_dead && RB_EMPTY_ROOT(&proc->threads) &&
+-			!atomic_read(&proc->tmp_ref)) {
++			!proc->tmp_ref) {
+ 		binder_inner_proc_unlock(proc);
+ 		binder_free_proc(proc);
+ 		return;
+@@ -2130,26 +2127,18 @@ static struct binder_thread *binder_get_txn_from_and_acq_inner(
+ 
+ static void binder_free_transaction(struct binder_transaction *t)
+ {
+-	struct binder_proc *target_proc;
++	struct binder_proc *target_proc = t->to_proc;
+ 
+-	spin_lock(&t->lock);
+-	target_proc = t->to_proc;
+ 	if (target_proc) {
+-		atomic_inc(&target_proc->tmp_ref);
+-		spin_unlock(&t->lock);
+-
+ 		binder_inner_proc_lock(target_proc);
+ 		if (t->buffer)
+ 			t->buffer->transaction = NULL;
+ 		binder_inner_proc_unlock(target_proc);
+-		binder_proc_dec_tmpref(target_proc);
+-	} else {
+-		/*
+-		 * If the transaction has no target_proc, then
+-		 * t->buffer->transaction * has already been cleared.
+-		 */
+-		spin_unlock(&t->lock);
+ 	}
++	/*
++	 * If the transaction has no target_proc, then
++	 * t->buffer->transaction has already been cleared.
++	 */
+ 	kfree(t);
+ 	binder_stats_deleted(BINDER_STAT_TRANSACTION);
+ }
+@@ -2524,7 +2513,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
+ 						     NULL,
+ 						     num_valid);
+ 			if (!parent) {
+-				pr_err("transaction release %d bad parent offset",
++				pr_err("transaction release %d bad parent offset\n",
+ 				       debug_id);
+ 				continue;
+ 			}
+@@ -2981,7 +2970,7 @@ static struct binder_node *binder_get_node_refs_for_txn(
+ 		target_node = node;
+ 		binder_inc_node_nilocked(node, 1, 0, NULL);
+ 		binder_inc_node_tmpref_ilocked(node);
+-		atomic_inc(&node->proc->tmp_ref);
++		node->proc->tmp_ref++;
+ 		*procp = node->proc;
+ 	} else
+ 		*error = BR_DEAD_REPLY;
+@@ -2997,6 +2986,7 @@ static void binder_transaction(struct binder_proc *proc,
+ {
+ 	int ret;
+ 	struct binder_transaction *t;
++	struct binder_work *w;
+ 	struct binder_work *tcomplete;
+ 	binder_size_t buffer_offset = 0;
+ 	binder_size_t off_start_offset, off_end_offset;
+@@ -3078,7 +3068,7 @@ static void binder_transaction(struct binder_proc *proc,
+ 			goto err_dead_binder;
+ 		}
+ 		target_proc = target_thread->proc;
+-		atomic_inc(&target_proc->tmp_ref);
++		target_proc->tmp_ref++;
+ 		binder_inner_proc_unlock(target_thread->proc);
+ 	} else {
+ 		if (tr->target.handle) {
+@@ -3114,7 +3104,7 @@ static void binder_transaction(struct binder_proc *proc,
+ 			else
+ 				return_error = BR_DEAD_REPLY;
+ 			mutex_unlock(&context->context_mgr_node_lock);
+-			if (target_node && target_proc == proc) {
++			if (target_node && target_proc->pid == proc->pid) {
+ 				binder_user_error("%d:%d got transaction to context manager from process owning it\n",
+ 						  proc->pid, thread->pid);
+ 				return_error = BR_FAILED_REPLY;
+@@ -3146,6 +3136,29 @@ static void binder_transaction(struct binder_proc *proc,
+ 			goto err_invalid_target_handle;
+ 		}
+ 		binder_inner_proc_lock(proc);
++
++		w = list_first_entry_or_null(&thread->todo,
++					     struct binder_work, entry);
++		if (!(tr->flags & TF_ONE_WAY) && w &&
++		    w->type == BINDER_WORK_TRANSACTION) {
++			/*
++			 * Do not allow new outgoing transaction from a
++			 * thread that has a transaction at the head of
++			 * its todo list. Only need to check the head
++			 * because binder_select_thread_ilocked picks a
++			 * thread from proc->waiting_threads to enqueue
++			 * the transaction, and nothing is queued to the
++			 * todo list while the thread is on waiting_threads.
++			 */
++			binder_user_error("%d:%d new transaction not allowed when there is a transaction on thread todo\n",
++					  proc->pid, thread->pid);
++			binder_inner_proc_unlock(proc);
++			return_error = BR_FAILED_REPLY;
++			return_error_param = -EPROTO;
++			return_error_line = __LINE__;
++			goto err_bad_todo_list;
++		}
++
+ 		if (!(tr->flags & TF_ONE_WAY) && thread->transaction_stack) {
+ 			struct binder_transaction *tmp;
+ 
+@@ -3272,7 +3285,7 @@ static void binder_transaction(struct binder_proc *proc,
+ 
+ 	t->buffer = binder_alloc_new_buf(&target_proc->alloc, tr->data_size,
+ 		tr->offsets_size, extra_buffers_size,
+-		!reply && (t->flags & TF_ONE_WAY), current->tgid);
++		!reply && (t->flags & TF_ONE_WAY));
+ 	if (IS_ERR(t->buffer)) {
+ 		/*
+ 		 * -ESRCH indicates VMA cleared. The target is dying.
+@@ -3300,7 +3313,6 @@ static void binder_transaction(struct binder_proc *proc,
+ 	t->buffer->debug_id = t->debug_id;
+ 	t->buffer->transaction = t;
+ 	t->buffer->target_node = target_node;
+-	t->buffer->clear_on_free = !!(t->flags & TF_CLEAR_BUF);
+ 	trace_binder_transaction_alloc_buf(t->buffer);
+ 
+ 	if (binder_alloc_copy_user_to_buffer(
+@@ -3626,6 +3638,7 @@ err_alloc_tcomplete_failed:
+ 	kfree(t);
+ 	binder_stats_deleted(BINDER_STAT_TRANSACTION);
+ err_alloc_t_failed:
++err_bad_todo_list:
+ err_bad_call_stack:
+ err_empty_call_stack:
+ err_dead_binder:
+@@ -4323,11 +4336,13 @@ retry:
+ 			e->cmd = BR_OK;
+ 			ptr += sizeof(uint32_t);
+ 
+-			binder_stat_br(proc, thread, e->cmd);
++			binder_stat_br(proc, thread, cmd);
+ 		} break;
+ 		case BINDER_WORK_TRANSACTION_COMPLETE: {
+ 			binder_inner_proc_unlock(proc);
+ 			cmd = BR_TRANSACTION_COMPLETE;
++			kfree(w);
++			binder_stats_deleted(BINDER_STAT_TRANSACTION_COMPLETE);
+ 			if (put_user(cmd, (uint32_t __user *)ptr))
+ 				return -EFAULT;
+ 			ptr += sizeof(uint32_t);
+@@ -4336,8 +4351,6 @@ retry:
+ 			binder_debug(BINDER_DEBUG_TRANSACTION_COMPLETE,
+ 				     "%d:%d BR_TRANSACTION_COMPLETE\n",
+ 				     proc->pid, thread->pid);
+-			kfree(w);
+-			binder_stats_deleted(BINDER_STAT_TRANSACTION_COMPLETE);
+ 		} break;
+ 		case BINDER_WORK_NODE: {
+ 			struct binder_node *node = container_of(w, struct binder_node, work);
+@@ -4744,7 +4757,7 @@ static int binder_thread_release(struct binder_proc *proc,
+ 	 * The corresponding dec is when we actually
+ 	 * free the thread in binder_free_thread()
+ 	 */
+-	atomic_inc(&proc->tmp_ref);
++	proc->tmp_ref++;
+ 	/*
+ 	 * take a ref on this thread to ensure it
+ 	 * survives while we are releasing it
+@@ -4832,25 +4845,19 @@ static unsigned int binder_poll(struct file *filp,
+ 	poll_wait(filp, &thread->wait, wait);
+ 
+ 	if (binder_has_work(thread, wait_for_proc_work))
+-		return POLLIN;
++		return EPOLLIN;
+ 
+ 	return 0;
+ }
+ 
+-static int binder_ioctl_write_read(struct file *filp,
+-				unsigned int cmd, unsigned long arg,
++static int binder_ioctl_write_read(struct file *filp, unsigned long arg,
+ 				struct binder_thread *thread)
+ {
+ 	int ret = 0;
+ 	struct binder_proc *proc = filp->private_data;
+-	unsigned int size = _IOC_SIZE(cmd);
+ 	void __user *ubuf = (void __user *)arg;
+ 	struct binder_write_read bwr;
+ 
+-	if (size != sizeof(struct binder_write_read)) {
+-		ret = -EINVAL;
+-		goto out;
+-	}
+ 	if (copy_from_user(&bwr, ubuf, sizeof(bwr))) {
+ 		ret = -EFAULT;
+ 		goto out;
+@@ -4988,7 +4995,8 @@ static int binder_ioctl_get_node_info_for_ref(struct binder_proc *proc,
+ }
+ 
+ static int binder_ioctl_get_node_debug_info(struct binder_proc *proc,
+-				struct binder_node_debug_info *info) {
++				struct binder_node_debug_info *info)
++{
+ 	struct rb_node *n;
+ 	binder_uintptr_t ptr = info->ptr;
+ 
+@@ -5016,7 +5024,6 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 	int ret;
+ 	struct binder_proc *proc = filp->private_data;
+ 	struct binder_thread *thread;
+-	unsigned int size = _IOC_SIZE(cmd);
+ 	void __user *ubuf = (void __user *)arg;
+ 
+ 	/*pr_info("binder_ioctl: %d:%d %x %lx\n",
+@@ -5038,7 +5045,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 
+ 	switch (cmd) {
+ 	case BINDER_WRITE_READ:
+-		ret = binder_ioctl_write_read(filp, cmd, arg, thread);
++		ret = binder_ioctl_write_read(filp, arg, thread);
+ 		if (ret)
+ 			goto err;
+ 		break;
+@@ -5081,10 +5088,6 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 	case BINDER_VERSION: {
+ 		struct binder_version __user *ver = ubuf;
+ 
+-		if (size != sizeof(struct binder_version)) {
+-			ret = -EINVAL;
+-			goto err;
+-		}
+ 		if (put_user(BINDER_CURRENT_PROTOCOL_VERSION,
+ 			     &ver->protocol_version)) {
+ 			ret = -EINVAL;
+@@ -5236,7 +5239,6 @@ static int binder_open(struct inode *nodp, struct file *filp)
+ 		return -ENOMEM;
+ 	spin_lock_init(&proc->inner_lock);
+ 	spin_lock_init(&proc->outer_lock);
+-	atomic_set(&proc->tmp_ref, 0);
+ 	get_task_struct(current->group_leader);
+ 	proc->tsk = current->group_leader;
+ 	mutex_init(&proc->files_lock);
+@@ -5417,7 +5419,7 @@ static void binder_deferred_release(struct binder_proc *proc)
+ 	 * Make sure proc stays alive after we
+ 	 * remove all the threads
+ 	 */
+-	atomic_inc(&proc->tmp_ref);
++	proc->tmp_ref++;
+ 
+ 	proc->is_dead = true;
+ 	threads = 0;
+diff --git a/drivers/android/binder_alloc.c b/drivers/android/binder_alloc.c
+index 5addcd5..3d182fd 100644
+--- a/drivers/android/binder_alloc.c
++++ b/drivers/android/binder_alloc.c
+@@ -17,7 +17,6 @@
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+-#include <asm/cacheflush.h>
+ #include <linux/list.h>
+ #include <linux/mm.h>
+ #include <linux/module.h>
+@@ -28,6 +27,8 @@
+ #include <linux/slab.h>
+ #include <linux/sched.h>
+ #include <linux/list_lru.h>
++#include <linux/ratelimit.h>
++#include <asm/cacheflush.h>
+ #include <linux/uaccess.h>
+ #include <linux/highmem.h>
+ #include "binder_alloc.h"
+@@ -43,7 +44,7 @@ enum {
+ 	BINDER_DEBUG_BUFFER_ALLOC           = 1U << 2,
+ 	BINDER_DEBUG_BUFFER_ALLOC_ASYNC     = 1U << 3,
+ };
+-static uint32_t binder_alloc_debug_mask;
++static uint32_t binder_alloc_debug_mask = BINDER_DEBUG_USER_ERROR;
+ 
+ module_param_named(debug_mask, binder_alloc_debug_mask,
+ 		   uint, 0644);
+@@ -51,7 +52,7 @@ module_param_named(debug_mask, binder_alloc_debug_mask,
+ #define binder_alloc_debug(mask, x...) \
+ 	do { \
+ 		if (binder_alloc_debug_mask & mask) \
+-			pr_info(x); \
++			pr_info_ratelimited(x); \
+ 	} while (0)
+ 
+ static struct binder_buffer *binder_buffer_next(struct binder_buffer *buffer)
+@@ -220,17 +221,13 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
+ 
+ 	if (mm) {
+ 		down_read(&mm->mmap_sem);
+-		if (!mmget_still_valid(mm)) {
+-			if (allocate == 0)
+-				goto free_range;
+-			goto err_no_vma;
+-		}
+ 		vma = alloc->vma;
+ 	}
+ 
+ 	if (!vma && need_mm) {
+-		pr_err("%d: binder_alloc_buf failed to map pages in userspace, no vma\n",
+-			alloc->pid);
++		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
++				   "%d: binder_alloc_buf failed to map pages in userspace, no vma\n",
++				   alloc->pid);
+ 		goto err_no_vma;
+ 	}
+ 
+@@ -288,8 +285,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
+ 	return 0;
+ 
+ free_range:
+-	for (page_addr = end - PAGE_SIZE; page_addr >= start;
+-	     page_addr -= PAGE_SIZE) {
++	for (page_addr = end - PAGE_SIZE; 1; page_addr -= PAGE_SIZE) {
+ 		bool ret;
+ 		size_t index;
+ 
+@@ -302,6 +298,8 @@ free_range:
+ 		WARN_ON(!ret);
+ 
+ 		trace_binder_free_lru_end(alloc, index);
++		if (page_addr == start)
++			break;
+ 		continue;
+ 
+ err_vm_insert_page_failed:
+@@ -309,7 +307,8 @@ err_vm_insert_page_failed:
+ 		page->page_ptr = NULL;
+ err_alloc_page_failed:
+ err_page_ptr_cleared:
+-		;
++		if (page_addr == start)
++			break;
+ 	}
+ err_no_vma:
+ 	if (mm) {
+@@ -319,41 +318,33 @@ err_no_vma:
+ 	return vma ? -ENOMEM : -ESRCH;
+ }
+ 
+-static void debug_low_async_space_locked(struct binder_alloc *alloc, int pid)
++
++static inline void binder_alloc_set_vma(struct binder_alloc *alloc,
++		struct vm_area_struct *vma)
+ {
++	if (vma)
++		alloc->vma_vm_mm = vma->vm_mm;
+ 	/*
+-	 * Find the amount and size of buffers allocated by the current caller;
+-	 * The idea is that once we cross the threshold, whoever is responsible
+-	 * for the low async space is likely to try to send another async txn,
+-	 * and at some point we'll catch them in the act. This is more efficient
+-	 * than keeping a map per pid.
++	 * If we see alloc->vma is not NULL, buffer data structures set up
++	 * completely. Look at smp_rmb side binder_alloc_get_vma.
++	 * We also want to guarantee new alloc->vma_vm_mm is always visible
++	 * if alloc->vma is set.
+ 	 */
+-	struct rb_node *n = alloc->free_buffers.rb_node;
+-	struct binder_buffer *buffer;
+-	size_t total_alloc_size = 0;
+-	size_t num_buffers = 0;
++	smp_wmb();
++	alloc->vma = vma;
++}
+ 
+-	for (n = rb_first(&alloc->allocated_buffers); n != NULL;
+-		 n = rb_next(n)) {
+-		buffer = rb_entry(n, struct binder_buffer, rb_node);
+-		if (buffer->pid != pid)
+-			continue;
+-		if (!buffer->async_transaction)
+-			continue;
+-		total_alloc_size += binder_alloc_buffer_size(alloc, buffer)
+-			+ sizeof(struct binder_buffer);
+-		num_buffers++;
+-	}
++static inline struct vm_area_struct *binder_alloc_get_vma(
++		struct binder_alloc *alloc)
++{
++	struct vm_area_struct *vma = NULL;
+ 
+-	/*
+-	 * Warn if this pid has more than 50 transactions, or more than 50% of
+-	 * async space (which is 25% of total buffer size).
+-	 */
+-	if (num_buffers > 50 || total_alloc_size > alloc->buffer_size / 4) {
+-		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
+-			     "%d: pid %d spamming oneway? %zd buffers allocated for a total size of %zd\n",
+-			      alloc->pid, pid, num_buffers, total_alloc_size);
++	if (alloc->vma) {
++		/* Look at description in binder_alloc_set_vma */
++		smp_rmb();
++		vma = alloc->vma;
+ 	}
++	return vma;
+ }
+ 
+ static struct binder_buffer *binder_alloc_new_buf_locked(
+@@ -361,8 +352,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
+ 				size_t data_size,
+ 				size_t offsets_size,
+ 				size_t extra_buffers_size,
+-				int is_async,
+-				int pid)
++				int is_async)
+ {
+ 	struct rb_node *n = alloc->free_buffers.rb_node;
+ 	struct binder_buffer *buffer;
+@@ -373,9 +363,10 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
+ 	size_t size, data_offsets_size;
+ 	int ret;
+ 
+-	if (alloc->vma == NULL) {
+-		pr_err("%d: binder_alloc_buf, no vma\n",
+-		       alloc->pid);
++	if (!binder_alloc_get_vma(alloc)) {
++		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
++				   "%d: binder_alloc_buf, no vma\n",
++				   alloc->pid);
+ 		return ERR_PTR(-ESRCH);
+ 	}
+ 
+@@ -447,11 +438,14 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
+ 			if (buffer_size > largest_free_size)
+ 				largest_free_size = buffer_size;
+ 		}
+-		pr_err("%d: binder_alloc_buf size %zd failed, no address space\n",
+-			alloc->pid, size);
+-		pr_err("allocated: %zd (num: %zd largest: %zd), free: %zd (num: %zd largest: %zd)\n",
+-		       total_alloc_size, allocated_buffers, largest_alloc_size,
+-		       total_free_size, free_buffers, largest_free_size);
++		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
++				   "%d: binder_alloc_buf size %zd failed, no address space\n",
++				   alloc->pid, size);
++		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
++				   "allocated: %zd (num: %zd largest: %zd), free: %zd (num: %zd largest: %zd)\n",
++				   total_alloc_size, allocated_buffers,
++				   largest_alloc_size, total_free_size,
++				   free_buffers, largest_free_size);
+ 		return ERR_PTR(-ENOSPC);
+ 	}
+ 	if (n == NULL) {
+@@ -501,20 +495,11 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
+ 	buffer->offsets_size = offsets_size;
+ 	buffer->async_transaction = is_async;
+ 	buffer->extra_buffers_size = extra_buffers_size;
+-	buffer->pid = pid;
+ 	if (is_async) {
+ 		alloc->free_async_space -= size + sizeof(struct binder_buffer);
+ 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
+ 			     "%d: binder_alloc_buf size %zd async free %zd\n",
+ 			      alloc->pid, size, alloc->free_async_space);
+-		if (alloc->free_async_space < alloc->buffer_size / 10) {
+-			/*
+-			 * Start detecting spammers once we have less than 20%
+-			 * of async space left (which is less than 10% of total
+-			 * buffer size).
+-			 */
+-			debug_low_async_space_locked(alloc, pid);
+-		}
+ 	}
+ 	return buffer;
+ 
+@@ -532,7 +517,6 @@ err_alloc_buf_struct_failed:
+  * @offsets_size:       user specified buffer offset
+  * @extra_buffers_size: size of extra space for meta-data (eg, security context)
+  * @is_async:           buffer for async transaction
+- * @pid:				pid to attribute allocation to (used for debugging)
+  *
+  * Allocate a new buffer given the requested sizes. Returns
+  * the kernel version of the buffer pointer. The size allocated
+@@ -545,14 +529,13 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
+ 					   size_t data_size,
+ 					   size_t offsets_size,
+ 					   size_t extra_buffers_size,
+-					   int is_async,
+-					   int pid)
++					   int is_async)
+ {
+ 	struct binder_buffer *buffer;
+ 
+ 	mutex_lock(&alloc->mutex);
+ 	buffer = binder_alloc_new_buf_locked(alloc, data_size, offsets_size,
+-					     extra_buffers_size, is_async, pid);
++					     extra_buffers_size, is_async);
+ 	mutex_unlock(&alloc->mutex);
+ 	return buffer;
+ }
+@@ -638,7 +621,7 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
+ 	BUG_ON(buffer->user_data > alloc->buffer + alloc->buffer_size);
+ 
+ 	if (buffer->async_transaction) {
+-		alloc->free_async_space += size + sizeof(struct binder_buffer);
++		alloc->free_async_space += buffer_size + sizeof(struct binder_buffer);
+ 
+ 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
+ 			     "%d: binder_free_buf size %zd async free %zd\n",
+@@ -672,8 +655,6 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
+ 	binder_insert_free_buffer(alloc, buffer);
+ }
+ 
+-static void binder_alloc_clear_buf(struct binder_alloc *alloc,
+-				   struct binder_buffer *buffer);
+ /**
+  * binder_alloc_free_buf() - free a binder buffer
+  * @alloc:	binder_alloc for this proc
+@@ -684,18 +665,6 @@ static void binder_alloc_clear_buf(struct binder_alloc *alloc,
+ void binder_alloc_free_buf(struct binder_alloc *alloc,
+ 			    struct binder_buffer *buffer)
+ {
+-	/*
+-	 * We could eliminate the call to binder_alloc_clear_buf()
+-	 * from binder_alloc_deferred_release() by moving this to
+-	 * binder_alloc_free_buf_locked(). However, that could
+-	 * increase contention for the alloc mutex if clear_on_free
+-	 * is used frequently for large buffers. The mutex is not
+-	 * needed for correctness here.
+-	 */
+-	if (buffer->clear_on_free) {
+-		binder_alloc_clear_buf(alloc, buffer);
+-		buffer->clear_on_free = false;
+-	}
+ 	mutex_lock(&alloc->mutex);
+ 	binder_free_buf_locked(alloc, buffer);
+ 	mutex_unlock(&alloc->mutex);
+@@ -731,8 +700,8 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
+ 	alloc->buffer = (void __user *)vma->vm_start;
+ 	mutex_unlock(&binder_alloc_mmap_lock);
+ 
+-	alloc->pages = kzalloc(sizeof(alloc->pages[0]) *
+-				   ((vma->vm_end - vma->vm_start) / PAGE_SIZE),
++	alloc->pages = kcalloc((vma->vm_end - vma->vm_start) / PAGE_SIZE,
++			       sizeof(alloc->pages[0]),
+ 			       GFP_KERNEL);
+ 	if (alloc->pages == NULL) {
+ 		ret = -ENOMEM;
+@@ -753,10 +722,7 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
+ 	buffer->free = 1;
+ 	binder_insert_free_buffer(alloc, buffer);
+ 	alloc->free_async_space = alloc->buffer_size / 2;
+-	barrier();
+-	alloc->vma = vma;
+-	alloc->vma_vm_mm = vma->vm_mm;
+-	/* Same as mmgrab() in later kernel versions */
++	binder_alloc_set_vma(alloc, vma);
+ 	atomic_inc(&alloc->vma_vm_mm->mm_count);
+ 
+ 	return 0;
+@@ -769,8 +735,10 @@ err_alloc_pages_failed:
+ 	alloc->buffer = NULL;
+ err_already_mapped:
+ 	mutex_unlock(&binder_alloc_mmap_lock);
+-	pr_err("%s: %d %lx-%lx %s failed %d\n", __func__,
+-	       alloc->pid, vma->vm_start, vma->vm_end, failure_string, ret);
++	binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
++			   "%s: %d %lx-%lx %s failed %d\n", __func__,
++			   alloc->pid, vma->vm_start, vma->vm_end,
++			   failure_string, ret);
+ 	return ret;
+ }
+ 
+@@ -781,20 +749,16 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
+ 	int buffers, page_count;
+ 	struct binder_buffer *buffer;
+ 
+-	BUG_ON(alloc->vma);
+-
+ 	buffers = 0;
+ 	mutex_lock(&alloc->mutex);
++	BUG_ON(alloc->vma);
++
+ 	while ((n = rb_first(&alloc->allocated_buffers))) {
+ 		buffer = rb_entry(n, struct binder_buffer, rb_node);
+ 
+ 		/* Transaction should already have been freed */
+ 		BUG_ON(buffer->transaction);
+ 
+-		if (buffer->clear_on_free) {
+-			binder_alloc_clear_buf(alloc, buffer);
+-			buffer->clear_on_free = false;
+-		}
+ 		binder_free_buf_locked(alloc, buffer);
+ 		buffers++;
+ 	}
+@@ -886,14 +850,20 @@ void binder_alloc_print_pages(struct seq_file *m,
+ 	int free = 0;
+ 
+ 	mutex_lock(&alloc->mutex);
+-	for (i = 0; i < alloc->buffer_size / PAGE_SIZE; i++) {
+-		page = &alloc->pages[i];
+-		if (!page->page_ptr)
+-			free++;
+-		else if (list_empty(&page->lru))
+-			active++;
+-		else
+-			lru++;
++	/*
++	 * Make sure the binder_alloc is fully initialized, otherwise we might
++	 * read inconsistent state.
++	 */
++	if (binder_alloc_get_vma(alloc) != NULL) {
++		for (i = 0; i < alloc->buffer_size / PAGE_SIZE; i++) {
++			page = &alloc->pages[i];
++			if (!page->page_ptr)
++				free++;
++			else if (list_empty(&page->lru))
++				active++;
++			else
++				lru++;
++		}
+ 	}
+ 	mutex_unlock(&alloc->mutex);
+ 	seq_printf(m, "  pages: %d:%d:%d\n", active, lru, free);
+@@ -929,7 +899,7 @@ int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
+  */
+ void binder_alloc_vma_close(struct binder_alloc *alloc)
+ {
+-	WRITE_ONCE(alloc->vma, NULL);
++	binder_alloc_set_vma(alloc, NULL);
+ }
+ 
+ /**
+@@ -968,9 +938,9 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
+ 	mm = alloc->vma_vm_mm;
+ 	if (!mmget_not_zero(mm))
+ 		goto err_mmget;
+-	if (!down_write_trylock(&mm->mmap_sem))
+-		goto err_down_write_mmap_sem_failed;
+-	vma = alloc->vma;
++	if (!down_read_trylock(&mm->mmap_sem))
++		goto err_down_read_mmap_sem_failed;
++	vma = binder_alloc_get_vma(alloc);
+ 
+ 	list_lru_isolate(lru, item);
+ 	spin_unlock(lock);
+@@ -982,8 +952,8 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
+ 
+ 		trace_binder_unmap_user_end(alloc, index);
+ 	}
+-	up_write(&mm->mmap_sem);
+-	mmput(mm);
++	up_read(&mm->mmap_sem);
++	mmput_async(mm);
+ 
+ 	trace_binder_unmap_kernel_start(alloc, index);
+ 
+@@ -996,7 +966,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
+ 	mutex_unlock(&alloc->mutex);
+ 	return LRU_REMOVED_RETRY;
+ 
+-err_down_write_mmap_sem_failed:
++err_down_read_mmap_sem_failed:
+ 	mmput_async(mm);
+ err_mmget:
+ err_page_already_freed:
+@@ -1121,36 +1091,6 @@ static struct page *binder_alloc_get_page(struct binder_alloc *alloc,
+ 	return lru_page->page_ptr;
+ }
+ 
+-/**
+- * binder_alloc_clear_buf() - zero out buffer
+- * @alloc: binder_alloc for this proc
+- * @buffer: binder buffer to be cleared
+- *
+- * memset the given buffer to 0
+- */
+-static void binder_alloc_clear_buf(struct binder_alloc *alloc,
+-				   struct binder_buffer *buffer)
+-{
+-	size_t bytes = binder_alloc_buffer_size(alloc, buffer);
+-	binder_size_t buffer_offset = 0;
+-
+-	while (bytes) {
+-		unsigned long size;
+-		struct page *page;
+-		pgoff_t pgoff;
+-		void *kptr;
+-
+-		page = binder_alloc_get_page(alloc, buffer,
+-					     buffer_offset, &pgoff);
+-		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
+-		kptr = kmap(page) + pgoff;
+-		memset(kptr, 0, size);
+-		kunmap(page);
+-		bytes -= size;
+-		buffer_offset += size;
+-	}
+-}
+-
+ /**
+  * binder_alloc_copy_user_to_buffer() - copy src user to tgt user
+  * @alloc: binder_alloc for this proc
+diff --git a/drivers/android/binder_alloc.h b/drivers/android/binder_alloc.h
+index da025cc..b60d161 100644
+--- a/drivers/android/binder_alloc.h
++++ b/drivers/android/binder_alloc.h
+@@ -22,11 +22,6 @@
+ #include <linux/vmalloc.h>
+ #include <linux/slab.h>
+ #include <linux/list_lru.h>
+-
+-#ifdef CONFIG_ANDROID_BINDER_IPC_32BIT
+-#define BINDER_IPC_32BIT 1
+-#endif
+-
+ #include <uapi/linux/android/binder.h>
+ 
+ extern struct list_lru binder_alloc_lru;
+@@ -37,7 +32,6 @@ struct binder_transaction;
+  * @entry:              entry alloc->buffers
+  * @rb_node:            node for allocated_buffers/free_buffers rb trees
+  * @free:               %true if buffer is free
+- * @clear_on_free:      %true if buffer must be zeroed after use
+  * @allow_user_free:    %true if user is allowed to free buffer
+  * @async_transaction:  %true if buffer is in use for an async txn
+  * @debug_id:           unique ID for debugging
+@@ -47,7 +41,6 @@ struct binder_transaction;
+  * @offsets_size:       size of array of offsets
+  * @extra_buffers_size: size of space for other objects (like sg lists)
+  * @user_data:          user pointer to base of buffer space
+- * @pid:                pid to attribute the buffer to (caller)
+  *
+  * Bookkeeping structure for binder transaction buffers
+  */
+@@ -56,10 +49,9 @@ struct binder_buffer {
+ 	struct rb_node rb_node; /* free entry by size or allocated entry */
+ 				/* by address */
+ 	unsigned free:1;
+-	unsigned clear_on_free:1;
+ 	unsigned allow_user_free:1;
+ 	unsigned async_transaction:1;
+-	unsigned debug_id:28;
++	unsigned debug_id:29;
+ 
+ 	struct binder_transaction *transaction;
+ 
+@@ -68,7 +60,6 @@ struct binder_buffer {
+ 	size_t offsets_size;
+ 	size_t extra_buffers_size;
+ 	void __user *user_data;
+-	int    pid;
+ };
+ 
+ /**
+@@ -135,8 +126,7 @@ extern struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
+ 						  size_t data_size,
+ 						  size_t offsets_size,
+ 						  size_t extra_buffers_size,
+-						  int is_async,
+-						  int pid);
++						  int is_async);
+ extern void binder_alloc_init(struct binder_alloc *alloc);
+ extern int binder_alloc_shrinker_init(void);
+ extern void binder_alloc_vma_close(struct binder_alloc *alloc);
+diff --git a/drivers/android/binder_alloc_selftest.c b/drivers/android/binder_alloc_selftest.c
+index c839c49..b727089 100644
+--- a/drivers/android/binder_alloc_selftest.c
++++ b/drivers/android/binder_alloc_selftest.c
+@@ -128,7 +128,7 @@ static void binder_selftest_alloc_buf(struct binder_alloc *alloc,
+ 	int i;
+ 
+ 	for (i = 0; i < BUFFER_NUM; i++) {
+-		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0, 0);
++		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0);
+ 		if (IS_ERR(buffers[i]) ||
+ 		    !check_buffer_pages_allocated(alloc, buffers[i],
+ 						  sizes[i])) {
+diff --git a/drivers/android/binder_trace.h b/drivers/android/binder_trace.h
+index 7674231..7df1e94 100644
+--- a/drivers/android/binder_trace.h
++++ b/drivers/android/binder_trace.h
+@@ -272,14 +272,17 @@ DECLARE_EVENT_CLASS(binder_buffer_class,
+ 		__field(int, debug_id)
+ 		__field(size_t, data_size)
+ 		__field(size_t, offsets_size)
++		__field(size_t, extra_buffers_size)
+ 	),
+ 	TP_fast_assign(
+ 		__entry->debug_id = buf->debug_id;
+ 		__entry->data_size = buf->data_size;
+ 		__entry->offsets_size = buf->offsets_size;
++		__entry->extra_buffers_size = buf->extra_buffers_size;
+ 	),
+-	TP_printk("transaction=%d data_size=%zd offsets_size=%zd",
+-		  __entry->debug_id, __entry->data_size, __entry->offsets_size)
++	TP_printk("transaction=%d data_size=%zd offsets_size=%zd extra_buffers_size=%zd",
++		  __entry->debug_id, __entry->data_size, __entry->offsets_size,
++		  __entry->extra_buffers_size)
+ );
+ 
+ DEFINE_EVENT(binder_buffer_class, binder_transaction_alloc_buf,
