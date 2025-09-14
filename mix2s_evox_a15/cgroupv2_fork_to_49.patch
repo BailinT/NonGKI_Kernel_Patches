@@ -1,8 +1,8 @@
-diff --git a/Documentation/cgroup-v1/rdma.txt b/Documentation/cgroup-v1/rdma.txt
+diff --git a/mix2s_cgroup/Documentation/cgroup-v1/rdma.txt b/mix2s_cgroup/Documentation/cgroup-v1/rdma.txt
 new file mode 100644
 index 0000000..af61817
 --- /dev/null
-+++ b/Documentation/cgroup-v1/rdma.txt
++++ b/mix2s_cgroup/Documentation/cgroup-v1/rdma.txt
 @@ -0,0 +1,109 @@
 +				RDMA Controller
 +				----------------
@@ -113,10 +113,10 @@ index 0000000..af61817
 +
 +(d) Delete resource limit:
 +echo echo mlx4_0 hca_handle=max hca_object=max > /sys/fs/cgroup/rdma/1/rdma.max
-diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+diff --git a/mix2s_ori/Documentation/cgroup-v2.txt b/mix2s_cgroup/Documentation/cgroup-v2.txt
 index 73950fd..e4b6bf4 100644
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
+--- a/mix2s_ori/Documentation/cgroup-v2.txt
++++ b/mix2s_cgroup/Documentation/cgroup-v2.txt
 @@ -16,7 +16,9 @@ CONTENTS
    1-2. What is cgroup?
  2. Basic Operations
@@ -595,10 +595,10 @@ index 73950fd..e4b6bf4 100644
  
  - The "tasks" file is removed and "cgroup.procs" is not sorted.
  
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+diff --git a/mix2s_ori/Documentation/kernel-parameters.txt b/mix2s_cgroup/Documentation/kernel-parameters.txt
 index a66de7d..9afba61 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
+--- a/mix2s_ori/Documentation/kernel-parameters.txt
++++ b/mix2s_cgroup/Documentation/kernel-parameters.txt
 @@ -692,10 +692,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
  			Specifying "pressure" disables per-cgroup pressure
  			stall information accounting feature
@@ -616,10 +616,62 @@ index a66de7d..9afba61 100644
  
  	cgroup.memory=	[KNL] Pass options to the cgroup memory controller.
  			Format: <string>
-diff --git a/fs/kernfs/file.c b/fs/kernfs/file.c
+diff --git a/mix2s_ori/fs/erofs/inode.c b/mix2s_cgroup/fs/erofs/inode.c
+index a04a9d3..c7fd150 100644
+--- a/mix2s_ori/fs/erofs/inode.c
++++ b/mix2s_cgroup/fs/erofs/inode.c
+@@ -337,16 +337,16 @@ struct inode *erofs_iget(struct super_block *sb,
+ 	return inode;
+ }
+ 
+-int erofs_getattr(const struct path *path, struct kstat *stat,
+-		  u32 request_mask, unsigned int query_flags)
++int erofs_getattr(struct vfsmount *mnt, struct dentry *dentry,
++			struct kstat *stat)
+ {
+-	struct inode *const inode = d_inode(path->dentry);
++	struct inode *const inode = d_inode(dentry);
+ 
++#if 0
+ 	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout))
+ 		stat->attributes |= STATX_ATTR_COMPRESSED;
+ 
+ 	stat->attributes |= STATX_ATTR_IMMUTABLE;
+-#if 0
+ 	stat->attributes_mask |= (STATX_ATTR_COMPRESSED |
+ 				  STATX_ATTR_IMMUTABLE);
+ #endif
+diff --git a/mix2s_ori/fs/erofs/internal.h b/mix2s_cgroup/fs/erofs/internal.h
+index 7369d1f..c52e771 100644
+--- a/mix2s_ori/fs/erofs/internal.h
++++ b/mix2s_cgroup/fs/erofs/internal.h
+@@ -382,8 +382,8 @@ extern const struct inode_operations erofs_symlink_iops;
+ extern const struct inode_operations erofs_fast_symlink_iops;
+ 
+ struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid, bool dir);
+-int erofs_getattr(const struct path *path, struct kstat *stat,
+-		  u32 request_mask, unsigned int query_flags);
++int erofs_getattr(struct vfsmount *mnt, struct dentry *dentry,
++			struct kstat *stat);
+ 
+ /* namei.c */
+ extern const struct inode_operations erofs_dir_iops;
+diff --git a/mix2s_ori/fs/internal.h b/mix2s_cgroup/fs/internal.h
+index 3e58863..380bae4 100644
+--- a/mix2s_ori/fs/internal.h
++++ b/mix2s_cgroup/fs/internal.h
+@@ -68,6 +68,7 @@ extern int finish_automount(struct vfsmount *, struct path *);
+ extern int sb_prepare_remount_readonly(struct super_block *);
+ 
+ extern void __init mnt_init(void);
++int path_umount(struct path *path, int flags);
+ 
+ extern int __mnt_want_write(struct vfsmount *);
+ extern int __mnt_want_write_file(struct file *);
+diff --git a/mix2s_ori/fs/kernfs/file.c b/mix2s_cgroup/fs/kernfs/file.c
 index 27358c8..b70288a 100644
---- a/fs/kernfs/file.c
-+++ b/fs/kernfs/file.c
+--- a/mix2s_ori/fs/kernfs/file.c
++++ b/mix2s_cgroup/fs/kernfs/file.c
 @@ -516,7 +516,7 @@ static int kernfs_fop_mmap(struct file *file, struct vm_area_struct *vma)
  		goto out_put;
  
@@ -629,10 +681,10 @@ index 27358c8..b70288a 100644
  	of->vm_ops = vma->vm_ops;
  	vma->vm_ops = &kernfs_vm_ops;
  out_put:
-diff --git a/fs/kernfs/mount.c b/fs/kernfs/mount.c
-index d5b149a..1d9bdb6 100644
---- a/fs/kernfs/mount.c
-+++ b/fs/kernfs/mount.c
+diff --git a/mix2s_ori/fs/kernfs/mount.c b/mix2s_cgroup/fs/kernfs/mount.c
+index d5b149a..1c2ea6c 100644
+--- a/mix2s_ori/fs/kernfs/mount.c
++++ b/mix2s_cgroup/fs/kernfs/mount.c
 @@ -123,8 +123,10 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
  		return dentry;
  
@@ -645,7 +697,7 @@ index d5b149a..1d9bdb6 100644
  
  	do {
  		struct dentry *dtmp;
-@@ -133,10 +135,13 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
+@@ -133,10 +135,11 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
  		if (kn == knparent)
  			return dentry;
  		kntmp = find_next_ancestor(kn, knparent);
@@ -656,16 +708,14 @@ index d5b149a..1d9bdb6 100644
 -		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
 -					       strlen(kntmp->name));
 +		}
-+		mutex_lock(&kernfs_mutex);
 +		dtmp = lookup_one_len(kntmp->name, dentry, strlen(kntmp->name));
-+		mutex_unlock(&kernfs_mutex);
  		dput(dentry);
  		if (IS_ERR(dtmp))
  			return dtmp;
-diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
+diff --git a/mix2s_ori/include/linux/cgroup-defs.h b/mix2s_cgroup/include/linux/cgroup-defs.h
 index 35a28e4..ab429b4 100644
---- a/include/linux/cgroup-defs.h
-+++ b/include/linux/cgroup-defs.h
+--- a/mix2s_ori/include/linux/cgroup-defs.h
++++ b/mix2s_cgroup/include/linux/cgroup-defs.h
 @@ -13,6 +13,7 @@
  #include <linux/wait.h>
  #include <linux/mutex.h>
@@ -978,10 +1028,10 @@ index 35a28e4..ab429b4 100644
  	/*
  	 * If %false, this subsystem is properly hierarchical -
  	 * configuration, resource accounting and restriction on a parent
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+diff --git a/mix2s_ori/include/linux/cgroup.h b/mix2s_cgroup/include/linux/cgroup.h
 index 4e93ff0..55a878a 100755
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
+--- a/mix2s_ori/include/linux/cgroup.h
++++ b/mix2s_cgroup/include/linux/cgroup.h
 @@ -17,11 +17,11 @@
  #include <linux/seq_file.h>
  #include <linux/kernfs.h>
@@ -1169,11 +1219,11 @@ index 4e93ff0..55a878a 100755
 +#endif /* !CONFIG_CGROUPS */
 +
  #endif /* _LINUX_CGROUP_H */
-diff --git a/include/linux/cgroup_rdma.h b/include/linux/cgroup_rdma.h
+diff --git a/mix2s_cgroup/include/linux/cgroup_rdma.h b/mix2s_cgroup/include/linux/cgroup_rdma.h
 new file mode 100644
 index 0000000..e94290b
 --- /dev/null
-+++ b/include/linux/cgroup_rdma.h
++++ b/mix2s_cgroup/include/linux/cgroup_rdma.h
 @@ -0,0 +1,53 @@
 +/*
 + * Copyright (C) 2016 Parav Pandit <pandit.parav@gmail.com>
@@ -1228,10 +1278,10 @@ index 0000000..e94290b
 +		     enum rdmacg_resource_type index);
 +#endif	/* CONFIG_CGROUP_RDMA */
 +#endif	/* _CGROUP_RDMA_H */
-diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
+diff --git a/mix2s_ori/include/linux/cgroup_subsys.h b/mix2s_cgroup/include/linux/cgroup_subsys.h
 index 7f4a2a5..ff4cad3 100644
---- a/include/linux/cgroup_subsys.h
-+++ b/include/linux/cgroup_subsys.h
+--- a/mix2s_ori/include/linux/cgroup_subsys.h
++++ b/mix2s_cgroup/include/linux/cgroup_subsys.h
 @@ -60,6 +60,10 @@ SUBSYS(hugetlb)
  SUBSYS(pids)
  #endif
@@ -1243,10 +1293,10 @@ index 7f4a2a5..ff4cad3 100644
  /*
   * The following subsystems are not supported on the default hierarchy.
   */
-diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+diff --git a/mix2s_ori/include/linux/cpuset.h b/mix2s_cgroup/include/linux/cpuset.h
 index d807fa9..3cfe2d2 100644
---- a/include/linux/cpuset.h
-+++ b/include/linux/cpuset.h
+--- a/mix2s_ori/include/linux/cpuset.h
++++ b/mix2s_cgroup/include/linux/cpuset.h
 @@ -56,7 +56,7 @@ static inline void cpuset_dec(void)
  extern int cpuset_init(void);
  extern void cpuset_init_smp(void);
@@ -1265,10 +1315,33 @@ index d807fa9..3cfe2d2 100644
  {
  	partition_sched_domains(1, NULL, NULL);
  }
-diff --git a/include/linux/kernfs.h b/include/linux/kernfs.h
+diff --git a/mix2s_ori/include/linux/cred.h b/mix2s_cgroup/include/linux/cred.h
+index 09debf2..796dc43 100644
+--- a/mix2s_ori/include/linux/cred.h
++++ b/mix2s_cgroup/include/linux/cred.h
+@@ -252,6 +252,18 @@ static inline const struct cred *get_cred(const struct cred *cred)
+ 	return get_new_cred(nonconst_cred);
+ }
+ 
++static inline const struct cred *get_cred_rcu(const struct cred *cred)
++{
++	struct cred *nonconst_cred = (struct cred *) cred;
++	if (!cred)
++		return NULL;
++	if (!atomic_inc_not_zero(&nonconst_cred->usage))
++		return NULL;
++	validate_creds(cred);
++	nonconst_cred->non_rcu = 0;
++	return cred;
++}
++
+ /**
+  * put_cred - Release a reference to a set of credentials
+  * @cred: The credentials to release
+diff --git a/mix2s_ori/include/linux/kernfs.h b/mix2s_cgroup/include/linux/kernfs.h
 index 44e5293..4df9b50 100644
---- a/include/linux/kernfs.h
-+++ b/include/linux/kernfs.h
+--- a/mix2s_ori/include/linux/kernfs.h
++++ b/mix2s_cgroup/include/linux/kernfs.h
 @@ -188,7 +188,7 @@ struct kernfs_open_file {
  	char			*prealloc_buf;
  
@@ -1278,10 +1351,10 @@ index 44e5293..4df9b50 100644
  	bool			released:1;
  	const struct vm_operations_struct *vm_ops;
  };
-diff --git a/include/linux/sched/deadline.h b/include/linux/sched/deadline.h
+diff --git a/mix2s_ori/include/linux/sched/deadline.h b/mix2s_cgroup/include/linux/sched/deadline.h
 index 9089a2a..975be86 100644
---- a/include/linux/sched/deadline.h
-+++ b/include/linux/sched/deadline.h
+--- a/mix2s_ori/include/linux/sched/deadline.h
++++ b/mix2s_cgroup/include/linux/sched/deadline.h
 @@ -1,5 +1,7 @@
 -#ifndef _SCHED_DEADLINE_H
 -#define _SCHED_DEADLINE_H
@@ -1298,10 +1371,10 @@ index 9089a2a..975be86 100644
  
 -#endif /* _SCHED_DEADLINE_H */
 +#endif /* _LINUX_SCHED_DEADLINE_H */
-diff --git a/include/linux/sched/prio.h b/include/linux/sched/prio.h
+diff --git a/mix2s_ori/include/linux/sched/prio.h b/mix2s_cgroup/include/linux/sched/prio.h
 index d9cf5a5..2cc450f 100644
---- a/include/linux/sched/prio.h
-+++ b/include/linux/sched/prio.h
+--- a/mix2s_ori/include/linux/sched/prio.h
++++ b/mix2s_cgroup/include/linux/sched/prio.h
 @@ -1,5 +1,5 @@
 -#ifndef _SCHED_PRIO_H
 -#define _SCHED_PRIO_H
@@ -1316,10 +1389,10 @@ index d9cf5a5..2cc450f 100644
  
 -#endif /* _SCHED_PRIO_H */
 +#endif /* _LINUX_SCHED_PRIO_H */
-diff --git a/include/linux/sched/rt.h b/include/linux/sched/rt.h
+diff --git a/mix2s_ori/include/linux/sched/rt.h b/mix2s_cgroup/include/linux/sched/rt.h
 index a30b172..3bd6684 100644
---- a/include/linux/sched/rt.h
-+++ b/include/linux/sched/rt.h
+--- a/mix2s_ori/include/linux/sched/rt.h
++++ b/mix2s_cgroup/include/linux/sched/rt.h
 @@ -1,7 +1,9 @@
 -#ifndef _SCHED_RT_H
 -#define _SCHED_RT_H
@@ -1339,10 +1412,10 @@ index a30b172..3bd6684 100644
  
 -#endif /* _SCHED_RT_H */
 +#endif /* _LINUX_SCHED_RT_H */
-diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
+diff --git a/mix2s_ori/include/linux/sched/sysctl.h b/mix2s_cgroup/include/linux/sched/sysctl.h
 index 9791323..8c7c8b7 100755
---- a/include/linux/sched/sysctl.h
-+++ b/include/linux/sched/sysctl.h
+--- a/mix2s_ori/include/linux/sched/sysctl.h
++++ b/mix2s_cgroup/include/linux/sched/sysctl.h
 @@ -1,5 +1,9 @@
 -#ifndef _SCHED_SYSCTL_H
 -#define _SCHED_SYSCTL_H
@@ -1361,10 +1434,10 @@ index 9791323..8c7c8b7 100755
  extern bool is_sched_lib_based_app(pid_t pid);
 -#endif /* _SCHED_SYSCTL_H */
 +#endif /* _LINUX_SCHED_SYSCTL_H */
-diff --git a/include/linux/sched.h b/include/linux/sched.h
+diff --git a/mix2s_ori/include/linux/sched.h b/mix2s_cgroup/include/linux/sched.h
 index c6875c6..ae461b8 100755
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
+--- a/mix2s_ori/include/linux/sched.h
++++ b/mix2s_cgroup/include/linux/sched.h
 @@ -1816,6 +1816,8 @@ struct task_struct {
  #ifdef CONFIG_CGROUPS
  	/* disallow userland-initiated cgroup migration */
@@ -1390,10 +1463,10 @@ index c6875c6..ae461b8 100755
  
  #define JOBCTL_TRAP_MASK	(JOBCTL_TRAP_STOP | JOBCTL_TRAP_NOTIFY)
  #define JOBCTL_PENDING_MASK	(JOBCTL_STOP_PENDING | JOBCTL_TRAP_MASK)
-diff --git a/init/Kconfig b/init/Kconfig
+diff --git a/mix2s_ori/init/Kconfig b/mix2s_cgroup/init/Kconfig
 index 71698d8..c65604c 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
+--- a/mix2s_ori/init/Kconfig
++++ b/mix2s_cgroup/init/Kconfig
 @@ -1167,6 +1167,16 @@ config CGROUP_PIDS
  	  since the PIDs limit only affects a process's ability to fork, not to
  	  attach to a cgroup.
@@ -1428,10 +1501,10 @@ index 71698d8..c65604c 100644
  
  	  Say N.
  
-diff --git a/kernel/Makefile b/kernel/Makefile
+diff --git a/mix2s_ori/kernel/Makefile b/mix2s_cgroup/kernel/Makefile
 index f3a91fa..9fec7d3 100644
---- a/kernel/Makefile
-+++ b/kernel/Makefile
+--- a/mix2s_ori/kernel/Makefile
++++ b/mix2s_cgroup/kernel/Makefile
 @@ -65,10 +65,7 @@ obj-$(CONFIG_KEXEC) += kexec.o
  obj-$(CONFIG_KEXEC_FILE) += kexec_file.o
  obj-$(CONFIG_BACKTRACE_SELF_TEST) += backtracetest.o
@@ -1444,11 +1517,11 @@ index f3a91fa..9fec7d3 100644
  obj-$(CONFIG_UTS_NS) += utsname.o
  obj-$(CONFIG_USER_NS) += user_namespace.o
  obj-$(CONFIG_PID_NS) += pid_namespace.o
-diff --git a/kernel/cgroup/Makefile b/kernel/cgroup/Makefile
+diff --git a/mix2s_cgroup/kernel/cgroup/Makefile b/mix2s_cgroup/kernel/cgroup/Makefile
 new file mode 100644
 index 0000000..0a3e87c
 --- /dev/null
-+++ b/kernel/cgroup/Makefile
++++ b/mix2s_cgroup/kernel/cgroup/Makefile
 @@ -0,0 +1,7 @@
 +obj-y := cgroup.o namespace.o cgroup-v1.o freezer.o
 +
@@ -1457,11 +1530,11 @@ index 0000000..0a3e87c
 +obj-$(CONFIG_CGROUP_RDMA) += rdma.o
 +obj-$(CONFIG_CPUSETS) += cpuset.o
 +obj-$(CONFIG_CGROUP_DEBUG) += debug.o
-diff --git a/kernel/cgroup/cgroup-internal.h b/kernel/cgroup/cgroup-internal.h
+diff --git a/mix2s_cgroup/kernel/cgroup/cgroup-internal.h b/mix2s_cgroup/kernel/cgroup/cgroup-internal.h
 new file mode 100644
 index 0000000..90104f8
 --- /dev/null
-+++ b/kernel/cgroup/cgroup-internal.h
++++ b/mix2s_cgroup/kernel/cgroup/cgroup-internal.h
 @@ -0,0 +1,242 @@
 +#ifndef __CGROUP_INTERNAL_H
 +#define __CGROUP_INTERNAL_H
@@ -1705,11 +1778,11 @@ index 0000000..90104f8
 +			     struct cgroup_namespace *ns);
 +
 +#endif /* __CGROUP_INTERNAL_H */
-diff --git a/kernel/cgroup/cgroup-v1.c b/kernel/cgroup/cgroup-v1.c
+diff --git a/mix2s_cgroup/kernel/cgroup/cgroup-v1.c b/mix2s_cgroup/kernel/cgroup/cgroup-v1.c
 new file mode 100644
 index 0000000..fc57613
 --- /dev/null
-+++ b/kernel/cgroup/cgroup-v1.c
++++ b/mix2s_cgroup/kernel/cgroup/cgroup-v1.c
 @@ -0,0 +1,1314 @@
 +#include "cgroup-internal.h"
 +
@@ -3025,13 +3098,13 @@ index 0000000..fc57613
 +	return 1;
 +}
 +__setup("cgroup_no_v1=", cgroup_no_v1);
-diff --git a/kernel/cgroup.c b/kernel/cgroup/cgroup.c
+diff --git a/mix2s_ori/kernel/cgroup.c b/mix2s_cgroup/kernel/cgroup/cgroup.c
 similarity index 70%
-rename from mix2s_cgpv2_bak/kernel/cgroup.c
-rename to mix2s_cgpv2_mod_bak/kernel/cgroup/cgroup.c
-index 5c6deb0..ce5f856 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup/cgroup.c
+rename from mix2s_ori/kernel/cgroup.c
+rename to mix2s_cgroup/kernel/cgroup/cgroup.c
+index 5c6deb0..0e9bbb2 100644
+--- a/mix2s_ori/kernel/cgroup.c
++++ b/mix2s_cgroup/kernel/cgroup/cgroup.c
 @@ -28,15 +28,13 @@
  
  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -5074,7 +5147,7 @@ index 5c6deb0..ce5f856 100644
  
  	if (!ret)
  		trace_cgroup_attach_task(dst_cgrp, leader, threadgroup);
-@@ -2883,103 +2697,30 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
+@@ -2883,222 +2697,65 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
  	return ret;
  }
  
@@ -5121,11 +5194,17 @@ index 5c6deb0..ce5f856 100644
 -	const struct cred *cred = current_cred();
 -	const struct cred *tcred = get_task_cred(task);
 -	int ret = 0;
--
--	/*
++	if (threadgroup)
++		tsk = tsk->group_leader;
+ 
+ 	/*
 -	 * even if we're attaching all tasks in the thread group, we only
 -	 * need to check permissions on one of them.
--	 */
++	 * kthreads may acquire PF_NO_SETAFFINITY during initialization.
++	 * If userland migrates such a kthread to a non-root cgroup, it can
++	 * become trapped in a cpuset, or RT kthread may be born in a
++	 * cgroup with no rt_runtime allocated.  Just say no.
+ 	 */
 -	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
 -	    !uid_eq(cred->euid, tcred->uid) &&
 -	    !uid_eq(cred->euid, tcred->suid) &&
@@ -5136,7 +5215,11 @@ index 5c6deb0..ce5f856 100644
 -		struct super_block *sb = of->file->f_path.dentry->d_sb;
 -		struct cgroup *cgrp;
 -		struct inode *inode;
--
++	if (tsk->no_cgroup_migration || (tsk->flags & PF_NO_SETAFFINITY)) {
++		tsk = ERR_PTR(-EINVAL);
++		goto out_unlock_threadgroup;
++	}
+ 
 -		spin_lock_irq(&css_set_lock);
 -		cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
 -		spin_unlock_irq(&css_set_lock);
@@ -5151,11 +5234,18 @@ index 5c6deb0..ce5f856 100644
 -			iput(inode);
 -		}
 -	}
--
++	get_task_struct(tsk);
++	goto out_unlock_rcu;
+ 
 -	put_cred(tcred);
 -	return ret;
--}
--
++out_unlock_threadgroup:
++	percpu_up_write(&cgroup_threadgroup_rwsem);
++out_unlock_rcu:
++	rcu_read_unlock();
++	return tsk;
+ }
+ 
 -/*
 - * Find the task_struct of the task to attach by vpid and pass it along to the
 - * function to attach either it or all tasks in its threadgroup. Will lock
@@ -5163,9 +5253,11 @@ index 5c6deb0..ce5f856 100644
 - */
 -static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 -				    size_t nbytes, loff_t off, bool threadgroup)
--{
++void cgroup_procs_write_finish(struct task_struct *task)
++	__releases(&cgroup_threadgroup_rwsem)
+ {
 -	struct task_struct *tsk;
--	struct cgroup_subsys *ss;
+ 	struct cgroup_subsys *ss;
 -	struct cgroup *cgrp;
 -	pid_t pid;
 -	int ssid, ret;
@@ -5191,55 +5283,49 @@ index 5c6deb0..ce5f856 100644
 -
 -	if (threadgroup)
 -		tsk = tsk->group_leader;
-+	if (threadgroup)
-+		tsk = tsk->group_leader;
- 
- 	/*
- 	 * kthreads may acquire PF_NO_SETAFFINITY during initialization.
-@@ -2988,117 +2729,33 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
- 	 * cgroup with no rt_runtime allocated.  Just say no.
- 	 */
- 	if (tsk->no_cgroup_migration || (tsk->flags & PF_NO_SETAFFINITY)) {
+-
+-	/*
+-	 * kthreads may acquire PF_NO_SETAFFINITY during initialization.
+-	 * If userland migrates such a kthread to a non-root cgroup, it can
+-	 * become trapped in a cpuset, or RT kthread may be born in a
+-	 * cgroup with no rt_runtime allocated.  Just say no.
+-	 */
+-	if (tsk->no_cgroup_migration || (tsk->flags & PF_NO_SETAFFINITY)) {
 -		ret = -EINVAL;
 -		goto out_unlock_rcu;
-+		tsk = ERR_PTR(-EINVAL);
-+		goto out_unlock_threadgroup;
- 	}
- 
- 	get_task_struct(tsk);
+-	}
+-
+-	get_task_struct(tsk);
 -	rcu_read_unlock();
 -
 -	ret = cgroup_procs_write_permission(tsk, cgrp, of);
 -	if (!ret)
 -		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
-+	goto out_unlock_rcu;
++	int ssid;
  
 -	put_task_struct(tsk);
 -	goto out_unlock_threadgroup;
--
++	/* release reference from cgroup_procs_write_start() */
++	put_task_struct(task);
+ 
 -out_unlock_rcu:
 -	rcu_read_unlock();
- out_unlock_threadgroup:
+-out_unlock_threadgroup:
  	percpu_up_write(&cgroup_threadgroup_rwsem);
--	for_each_subsys(ss, ssid)
--		if (ss->post_attach)
--			ss->post_attach();
+ 	for_each_subsys(ss, ssid)
+ 		if (ss->post_attach)
+ 			ss->post_attach();
 -	cgroup_kn_unlock(of->kn);
 -	return ret ?: nbytes;
-+out_unlock_rcu:
-+	rcu_read_unlock();
-+	return tsk;
- }
- 
+-}
+-
 -/**
 - * cgroup_attach_task_all - attach task 'tsk' to all cgroups of task 'from'
 - * @from: attach to all cgroups of a given task
 - * @tsk: the task to be attached
 - */
 -int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
-+void cgroup_procs_write_finish(struct task_struct *task)
-+	__releases(&cgroup_threadgroup_rwsem)
- {
+-{
 -	struct cgroup_root *root;
 -	int retval = 0;
 -
@@ -5250,20 +5336,16 @@ index 5c6deb0..ce5f856 100644
 -
 -		if (root == &cgrp_dfl_root)
 -			continue;
-+	struct cgroup_subsys *ss;
-+	int ssid;
- 
+-
 -		spin_lock_irq(&css_set_lock);
 -		from_cgrp = task_cgroup_from_root(from, root);
 -		spin_unlock_irq(&css_set_lock);
-+	/* release reference from cgroup_procs_write_start() */
-+	put_task_struct(task);
- 
+-
 -		retval = cgroup_attach_task(from_cgrp, tsk, false);
 -		if (retval)
 -			break;
 -	}
- 	percpu_up_write(&cgroup_threadgroup_rwsem);
+-	percpu_up_write(&cgroup_threadgroup_rwsem);
 -	mutex_unlock(&cgroup_mutex);
 -
 -	return retval;
@@ -5323,9 +5405,6 @@ index 5c6deb0..ce5f856 100644
 -{
 -	seq_puts(seq, "0\n");
 -	return 0;
-+	for_each_subsys(ss, ssid)
-+		if (ss->post_attach)
-+			ss->post_attach();
  }
  
  static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
@@ -6093,13 +6172,7 @@ index 5c6deb0..ce5f856 100644
 +			it->flags &= ~CSS_TASK_ITER_SKIPPED;
 +		else
 +			it->task_pos = it->task_pos->next;
- 
--	/*
--	 * Advance iterator to find next entry.  cset->tasks is consumed
--	 * first and then ->mg_tasks.  After ->mg_tasks, we move onto the
--	 * next cset.
--	 */
--	l = l->next;
++
 +		if (it->task_pos == it->tasks_head) {
 +			it->task_pos = it->mg_tasks_head->next;
 +			it->cur_tasks_head = it->mg_tasks_head;
@@ -6118,19 +6191,25 @@ index 5c6deb0..ce5f856 100644
 +	if (!it->task_pos)
 +		return;
  
+-	/*
+-	 * Advance iterator to find next entry.  cset->tasks is consumed
+-	 * first and then ->mg_tasks.  After ->mg_tasks, we move onto the
+-	 * next cset.
+-	 */
+-	l = l->next;
++	task = list_entry(it->task_pos, struct task_struct, cg_list);
+ 
 -	if (l == it->tasks_head)
 -		l = it->mg_tasks_head->next;
-+	task = list_entry(it->task_pos, struct task_struct, cg_list);
++	if (it->flags & CSS_TASK_ITER_PROCS) {
++		/* if PROCS, skip over tasks which aren't group leaders */
++		if (!thread_group_leader(task))
++			goto repeat;
  
 -	if (l == it->mg_tasks_head)
 -		css_task_iter_advance_css_set(it);
 -	else
 -		it->task_pos = l;
-+	if (it->flags & CSS_TASK_ITER_PROCS) {
-+		/* if PROCS, skip over tasks which aren't group leaders */
-+		if (!thread_group_leader(task))
-+			goto repeat;
-+
 +		/* and dying leaders w/o live member threads */
 +		if (it->cur_tasks_head == it->dying_tasks_head &&
 +		    !atomic_read(&task->signal->live))
@@ -6186,7 +6265,7 @@ index 5c6deb0..ce5f856 100644
  	if (it->task_pos) {
  		it->cur_task = list_entry(it->task_pos, struct task_struct,
  					  cg_list);
-@@ -4543,576 +4501,276 @@ void css_task_iter_end(struct css_task_iter *it)
+@@ -4543,576 +4501,256 @@ void css_task_iter_end(struct css_task_iter *it)
  		spin_unlock_irq(&css_set_lock);
  	}
  
@@ -6465,20 +6544,17 @@ index 5c6deb0..ce5f856 100644
 -{
 -	return *(pid_t *)a - *(pid_t *)b;
 -}
-+	if (cgroup_is_threaded(cgrp))
-+		return ERR_PTR(-EOPNOTSUPP);
- 
+-
 -static int fried_cmppid(const void *a, const void *b)
 -{
 -	return pid_fry(*(pid_t *)a) - pid_fry(*(pid_t *)b);
-+	return __cgroup_procs_start(s, pos, CSS_TASK_ITER_PROCS |
-+					    CSS_TASK_ITER_THREADED);
- }
+-}
++	if (cgroup_is_threaded(cgrp))
++		return ERR_PTR(-EOPNOTSUPP);
  
 -static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 -						  enum cgroup_filetype type)
-+static int cgroup_procs_show(struct seq_file *s, void *v)
- {
+-{
 -	struct cgroup_pidlist *l;
 -	/* don't need task_nsproxy() if we're looking at ourself */
 -	struct pid_namespace *ns = task_active_pid_ns(current);
@@ -6489,8 +6565,8 @@ index 5c6deb0..ce5f856 100644
 -		if (l->key.type == type && l->key.ns == ns)
 -			return l;
 -	return NULL;
-+	seq_printf(s, "%d\n", task_pid_vnr(v));
-+	return 0;
++	return __cgroup_procs_start(s, pos, CSS_TASK_ITER_PROCS |
++					    CSS_TASK_ITER_THREADED);
  }
  
 -/*
@@ -6501,32 +6577,21 @@ index 5c6deb0..ce5f856 100644
 - */
 -static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
 -						enum cgroup_filetype type)
-+int subsys_cgroup_allow_attach(struct cgroup_taskset *tset)
++static int cgroup_procs_show(struct seq_file *s, void *v)
  {
 -	struct cgroup_pidlist *l;
-+	const struct cred *cred = current_cred(), *tcred;
-+	struct task_struct *task;
-+	struct cgroup_subsys_state *css;
- 
+-
 -	lockdep_assert_held(&cgrp->pidlist_mutex);
-+	if (capable(CAP_SYS_NICE))
-+		return 0;
- 
+-
 -	l = cgroup_pidlist_find(cgrp, type);
 -	if (l)
 -		return l;
-+	cgroup_taskset_for_each(task, css, tset) {
-+		tcred = __task_cred(task);
- 
+-
 -	/* entry not found; create a new one */
 -	l = kzalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
 -	if (!l)
 -		return l;
-+		if (current != task && !uid_eq(cred->euid, tcred->uid) &&
-+			!uid_eq(cred->euid, tcred->suid))
-+			return -EACCES;
-+	}
- 
+-
 -	INIT_DELAYED_WORK(&l->destroy_dwork, cgroup_pidlist_destroy_work_fn);
 -	l->key.type = type;
 -	/* don't need task_nsproxy() if we're looking at ourself */
@@ -6534,6 +6599,7 @@ index 5c6deb0..ce5f856 100644
 -	l->owner = cgrp;
 -	list_add(&l->links, &cgrp->pidlists);
 -	return l;
++	seq_printf(s, "%d\n", task_pid_vnr(v));
 +	return 0;
  }
  
@@ -6947,7 +7013,7 @@ index 5c6deb0..ce5f856 100644
  		.seq_show = cgroup_subtree_control_show,
  		.write = cgroup_subtree_control_write,
  	},
-@@ -5148,50 +4806,25 @@ static struct cftype cgroup_dfl_base_files[] = {
+@@ -5148,50 +4786,25 @@ static struct cftype cgroup_dfl_base_files[] = {
  		.release = cgroup_pressure_release,
  	},
  #endif /* CONFIG_PSI */
@@ -7010,7 +7076,7 @@ index 5c6deb0..ce5f856 100644
  	},
  	{ }	/* terminate */
  };
-@@ -5241,7 +4874,7 @@ static void css_free_work_fn(struct work_struct *work)
+@@ -5241,7 +4854,7 @@ static void css_free_work_fn(struct work_struct *work)
  	} else {
  		/* cgroup free path */
  		atomic_dec(&cgrp->root->nr_cgrps);
@@ -7019,7 +7085,7 @@ index 5c6deb0..ce5f856 100644
  		cancel_work_sync(&cgrp->release_agent_work);
  
  		if (cgroup_parent(cgrp)) {
-@@ -5294,9 +4927,17 @@ static void css_release_work_fn(struct work_struct *work)
+@@ -5294,9 +4907,17 @@ static void css_release_work_fn(struct work_struct *work)
  		if (ss->css_released)
  			ss->css_released(css);
  	} else {
@@ -7037,7 +7103,7 @@ index 5c6deb0..ce5f856 100644
  		cgroup_idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
  		cgrp->id = -1;
  
-@@ -5383,9 +5024,6 @@ static void offline_css(struct cgroup_subsys_state *css)
+@@ -5383,9 +5004,6 @@ static void offline_css(struct cgroup_subsys_state *css)
  	if (!(css->flags & CSS_ONLINE))
  		return;
  
@@ -7047,7 +7113,7 @@ index 5c6deb0..ce5f856 100644
  	if (ss->css_offline)
  		ss->css_offline(css);
  
-@@ -5498,9 +5136,40 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
+@@ -5498,9 +5116,40 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
  	if (ret)
  		goto out_idr_free;
  
@@ -7089,7 +7155,7 @@ index 5c6deb0..ce5f856 100644
  	if (notify_on_release(parent))
  		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
  
-@@ -5546,8 +5215,30 @@ out_free_cgrp:
+@@ -5546,8 +5195,30 @@ out_free_cgrp:
  	return ERR_PTR(ret);
  }
  
@@ -7122,7 +7188,7 @@ index 5c6deb0..ce5f856 100644
  {
  	struct cgroup *parent, *cgrp;
  	struct kernfs_node *kn;
-@@ -5561,6 +5252,11 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
+@@ -5561,6 +5232,11 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
  	if (!parent)
  		return -ENODEV;
  
@@ -7134,7 +7200,7 @@ index 5c6deb0..ce5f856 100644
  	cgrp = cgroup_create(parent);
  	if (IS_ERR(cgrp)) {
  		ret = PTR_ERR(cgrp);
-@@ -5712,6 +5408,7 @@ static void kill_css(struct cgroup_subsys_state *css)
+@@ -5712,6 +5388,7 @@ static void kill_css(struct cgroup_subsys_state *css)
  static int cgroup_destroy_locked(struct cgroup *cgrp)
  	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
  {
@@ -7142,7 +7208,7 @@ index 5c6deb0..ce5f856 100644
  	struct cgroup_subsys_state *css;
  	struct cgrp_cset_link *link;
  	int ssid;
-@@ -5750,13 +5447,27 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
+@@ -5750,13 +5427,27 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
  	for_each_css(css, ssid, cgrp)
  		kill_css(css);
  
@@ -7175,7 +7241,7 @@ index 5c6deb0..ce5f856 100644
  
  	/* put the base reference */
  	percpu_ref_kill(&cgrp->self.refcnt);
-@@ -5764,7 +5475,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
+@@ -5764,7 +5455,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
  	return 0;
  };
  
@@ -7184,7 +7250,7 @@ index 5c6deb0..ce5f856 100644
  {
  	struct cgroup *cgrp;
  	int ret = 0;
-@@ -5783,11 +5494,10 @@ static int cgroup_rmdir(struct kernfs_node *kn)
+@@ -5783,11 +5474,10 @@ static int cgroup_rmdir(struct kernfs_node *kn)
  }
  
  static struct kernfs_syscall_ops cgroup_kf_syscall_ops = {
@@ -7197,7 +7263,7 @@ index 5c6deb0..ce5f856 100644
  	.show_path		= cgroup_show_path,
  };
  
-@@ -5831,7 +5541,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
+@@ -5831,7 +5521,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
  
  	have_fork_callback |= (bool)ss->fork << ss->id;
  	have_exit_callback |= (bool)ss->exit << ss->id;
@@ -7206,7 +7272,7 @@ index 5c6deb0..ce5f856 100644
  	have_canfork_callback |= (bool)ss->can_fork << ss->id;
  
  	/* At system boot, before all subsystems have been
-@@ -5893,8 +5603,8 @@ int __init cgroup_init(void)
+@@ -5893,8 +5583,8 @@ int __init cgroup_init(void)
  
  	BUILD_BUG_ON(CGROUP_SUBSYS_COUNT > 16);
  	BUG_ON(percpu_init_rwsem(&cgroup_threadgroup_rwsem));
@@ -7217,7 +7283,7 @@ index 5c6deb0..ce5f856 100644
  
  	/*
  	 * The latency of the synchronize_sched() is too high for cgroups,
-@@ -5940,17 +5650,23 @@ int __init cgroup_init(void)
+@@ -5940,17 +5630,23 @@ int __init cgroup_init(void)
  		if (!cgroup_ssid_enabled(ssid))
  			continue;
  
@@ -7242,7 +7308,7 @@ index 5c6deb0..ce5f856 100644
  		if (ss->dfl_cftypes == ss->legacy_cftypes) {
  			WARN_ON(cgroup_add_cftypes(ss, ss->dfl_cftypes));
  		} else {
-@@ -5991,15 +5707,6 @@ static int __init cgroup_wq_init(void)
+@@ -5991,15 +5687,6 @@ static int __init cgroup_wq_init(void)
  	 */
  	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
  	BUG_ON(!cgroup_destroy_wq);
@@ -7258,7 +7324,7 @@ index 5c6deb0..ce5f856 100644
  	return 0;
  }
  core_initcall(cgroup_wq_init);
-@@ -6082,42 +5789,6 @@ out:
+@@ -6082,42 +5769,6 @@ out:
  	return retval;
  }
  
@@ -7301,7 +7367,7 @@ index 5c6deb0..ce5f856 100644
  /**
   * cgroup_fork - initialize cgroup related fields during copy_process()
   * @child: pointer to task_struct of forking parent process.
-@@ -6224,8 +5895,29 @@ void cgroup_post_fork(struct task_struct *child)
+@@ -6224,8 +5875,29 @@ void cgroup_post_fork(struct task_struct *child)
  		cset = task_css_set(current);
  		if (list_empty(&child->cg_list)) {
  			get_css_set(cset);
@@ -7331,10 +7397,10 @@ index 5c6deb0..ce5f856 100644
  		spin_unlock_irq(&css_set_lock);
  	}
  
-@@ -6274,6 +5966,13 @@ void cgroup_exit(struct task_struct *tsk)
+@@ -6273,6 +5945,13 @@ void cgroup_exit(struct task_struct *tsk)
+ 	if (!list_empty(&tsk->cg_list)) {
  		spin_lock_irq(&css_set_lock);
  		css_set_move_task(tsk, cset, NULL, false);
- 		spin_unlock_irq(&css_set_lock);
 +		list_add_tail(&tsk->cg_list, &cset->dying_tasks);
 +		cset->nr_tasks--;
 +
@@ -7342,10 +7408,10 @@ index 5c6deb0..ce5f856 100644
 +			cgroup_freezer_frozen_exit(tsk);
 +		else if (unlikely(cgroup_task_freeze(tsk)))
 +			cgroup_update_frozen(task_dfl_cgroup(tsk));
+ 		spin_unlock_irq(&css_set_lock);
  	} else {
  		get_css_set(cset);
- 	}
-@@ -6284,87 +5983,27 @@ void cgroup_exit(struct task_struct *tsk)
+@@ -6284,87 +5963,27 @@ void cgroup_exit(struct task_struct *tsk)
  	} while_each_subsys_mask();
  }
  
@@ -7445,7 +7511,7 @@ index 5c6deb0..ce5f856 100644
  }
  
  static int __init cgroup_disable(char *str)
-@@ -6400,33 +6039,6 @@ static int __init cgroup_disable(char *str)
+@@ -6400,33 +6019,6 @@ static int __init cgroup_disable(char *str)
  }
  __setup("cgroup_disable=", cgroup_disable);
  
@@ -7479,7 +7545,7 @@ index 5c6deb0..ce5f856 100644
  /**
   * css_tryget_online_from_dir - get corresponding css from a cgroup dentry
   * @dentry: directory dentry of interest
-@@ -6456,7 +6068,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
+@@ -6456,7 +6048,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
  	 * have been or be removed at any point.  @kn->priv is RCU
  	 * protected for this access.  See css_release_work_fn() for details.
  	 */
@@ -7488,7 +7554,7 @@ index 5c6deb0..ce5f856 100644
  	if (cgrp)
  		css = cgroup_css(cgrp, ss);
  
-@@ -6626,154 +6238,6 @@ void cgroup_sk_free(struct sock_cgroup_data *skcd)
+@@ -6626,154 +6218,6 @@ void cgroup_sk_free(struct sock_cgroup_data *skcd)
  
  #endif	/* CONFIG_SOCK_CGROUP_DATA */
  
@@ -7643,7 +7709,7 @@ index 5c6deb0..ce5f856 100644
  #ifdef CONFIG_CGROUP_BPF
  int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
  		      enum bpf_attach_type type, u32 flags)
-@@ -6797,148 +6261,69 @@ int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+@@ -6797,148 +6241,69 @@ int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
  }
  #endif /* CONFIG_CGROUP_BPF */
  
@@ -7838,13 +7904,13 @@ index 5c6deb0..ce5f856 100644
 +}
 +subsys_initcall(cgroup_sysfs_init);
 +#endif /* CONFIG_SYSFS */
-diff --git a/kernel/cpuset.c b/kernel/cgroup/cpuset.c
+diff --git a/mix2s_ori/kernel/cpuset.c b/mix2s_cgroup/kernel/cgroup/cpuset.c
 similarity index 97%
-rename from mix2s_cgpv2_bak/kernel/cpuset.c
-rename to mix2s_cgpv2_mod_bak/kernel/cgroup/cpuset.c
+rename from mix2s_ori/kernel/cpuset.c
+rename to mix2s_cgroup/kernel/cgroup/cpuset.c
 index df64cb9..4890211 100644
---- a/kernel/cpuset.c
-+++ b/kernel/cgroup/cpuset.c
+--- a/mix2s_ori/kernel/cpuset.c
++++ b/mix2s_cgroup/kernel/cgroup/cpuset.c
 @@ -298,6 +298,16 @@ static DECLARE_WORK(cpuset_hotplug_work, cpuset_hotplug_workfn);
  
  static DECLARE_WAIT_QUEUE_HEAD(cpuset_attach_wq);
@@ -8072,11 +8138,11 @@ index df64cb9..4890211 100644
  	rcu_read_unlock();
  
  	/*
-diff --git a/kernel/cgroup/debug.c b/kernel/cgroup/debug.c
+diff --git a/mix2s_cgroup/kernel/cgroup/debug.c b/mix2s_cgroup/kernel/cgroup/debug.c
 new file mode 100644
 index 0000000..f661b4c
 --- /dev/null
-+++ b/kernel/cgroup/debug.c
++++ b/mix2s_cgroup/kernel/cgroup/debug.c
 @@ -0,0 +1,382 @@
 +/*
 + * Debug controller
@@ -8460,11 +8526,11 @@ index 0000000..f661b4c
 +	return 1;
 +}
 +__setup("cgroup_debug", enable_cgroup_debug);
-diff --git a/kernel/cgroup/freezer.c b/kernel/cgroup/freezer.c
+diff --git a/mix2s_cgroup/kernel/cgroup/freezer.c b/mix2s_cgroup/kernel/cgroup/freezer.c
 new file mode 100644
 index 0000000..103938f
 --- /dev/null
-+++ b/kernel/cgroup/freezer.c
++++ b/mix2s_cgroup/kernel/cgroup/freezer.c
 @@ -0,0 +1,315 @@
 +//SPDX-License-Identifier: GPL-2.0
 +#include <linux/cgroup.h>
@@ -8781,13 +8847,13 @@ index 0000000..103938f
 +	if (!applied)
 +		cgroup_file_notify(&cgrp->events_file);
 +}
-diff --git a/kernel/cgroup_freezer.c b/kernel/cgroup/legacy_freezer.c
+diff --git a/mix2s_ori/kernel/cgroup_freezer.c b/mix2s_cgroup/kernel/cgroup/legacy_freezer.c
 similarity index 99%
-rename from mix2s_cgpv2_bak/kernel/cgroup_freezer.c
-rename to mix2s_cgpv2_mod_bak/kernel/cgroup/legacy_freezer.c
+rename from mix2s_ori/kernel/cgroup_freezer.c
+rename to mix2s_cgroup/kernel/cgroup/legacy_freezer.c
 index 1b72d56..0823679 100644
---- a/kernel/cgroup_freezer.c
-+++ b/kernel/cgroup/legacy_freezer.c
+--- a/mix2s_ori/kernel/cgroup_freezer.c
++++ b/mix2s_cgroup/kernel/cgroup/legacy_freezer.c
 @@ -268,7 +268,7 @@ static void update_if_frozen(struct cgroup_subsys_state *css)
  	rcu_read_unlock();
  
@@ -8815,11 +8881,11 @@ index 1b72d56..0823679 100644
  	while ((task = css_task_iter_next(&it)))
  		__thaw_task(task);
  	css_task_iter_end(&it);
-diff --git a/kernel/cgroup/namespace.c b/kernel/cgroup/namespace.c
+diff --git a/mix2s_cgroup/kernel/cgroup/namespace.c b/mix2s_cgroup/kernel/cgroup/namespace.c
 new file mode 100644
 index 0000000..86e9bbe
 --- /dev/null
-+++ b/kernel/cgroup/namespace.c
++++ b/mix2s_cgroup/kernel/cgroup/namespace.c
 @@ -0,0 +1,155 @@
 +#include "cgroup-internal.h"
 +
@@ -8976,13 +9042,13 @@ index 0000000..86e9bbe
 +	return 0;
 +}
 +subsys_initcall(cgroup_namespaces_init);
-diff --git a/kernel/cgroup_pids.c b/kernel/cgroup/pids.c
+diff --git a/mix2s_ori/kernel/cgroup_pids.c b/mix2s_cgroup/kernel/cgroup/pids.c
 similarity index 98%
-rename from mix2s_cgpv2_bak/kernel/cgroup_pids.c
-rename to mix2s_cgpv2_mod_bak/kernel/cgroup/pids.c
+rename from mix2s_ori/kernel/cgroup_pids.c
+rename to mix2s_cgroup/kernel/cgroup/pids.c
 index b8b898e..6f064cc 100644
---- a/kernel/cgroup_pids.c
-+++ b/kernel/cgroup/pids.c
+--- a/mix2s_ori/kernel/cgroup_pids.c
++++ b/mix2s_cgroup/kernel/cgroup/pids.c
 @@ -248,7 +248,7 @@ static void pids_cancel_fork(struct task_struct *task)
  	pids_uncharge(pids, 1);
  }
@@ -9002,11 +9068,11 @@ index b8b898e..6f064cc 100644
  	.dfl_cftypes	= pids_files,
 +	.threaded	= true,
  };
-diff --git a/kernel/cgroup/rdma.c b/kernel/cgroup/rdma.c
+diff --git a/mix2s_cgroup/kernel/cgroup/rdma.c b/mix2s_cgroup/kernel/cgroup/rdma.c
 new file mode 100644
 index 0000000..defad3c
 --- /dev/null
-+++ b/kernel/cgroup/rdma.c
++++ b/mix2s_cgroup/kernel/cgroup/rdma.c
 @@ -0,0 +1,619 @@
 +/*
 + * RDMA resource limiting controller for cgroups.
@@ -9627,10 +9693,23 @@ index 0000000..defad3c
 +	.legacy_cftypes	= rdmacg_files,
 +	.dfl_cftypes	= rdmacg_files,
 +};
-diff --git a/kernel/events/core.c b/kernel/events/core.c
+diff --git a/mix2s_ori/kernel/cred.c b/mix2s_cgroup/kernel/cred.c
+index d63a2d8..ad24a4c 100644
+--- a/mix2s_ori/kernel/cred.c
++++ b/mix2s_cgroup/kernel/cred.c
+@@ -196,7 +196,7 @@ const struct cred *get_task_cred(struct task_struct *task)
+ 	do {
+ 		cred = __task_cred((task));
+ 		BUG_ON(!cred);
+-	} while (!atomic_inc_not_zero(&((struct cred *)cred)->usage));
++	} while (!get_cred_rcu(cred));
+ 
+ 	rcu_read_unlock();
+ 	return cred;
+diff --git a/mix2s_ori/kernel/events/core.c b/mix2s_cgroup/kernel/events/core.c
 index 547184b..5402560 100644
---- a/kernel/events/core.c
-+++ b/kernel/events/core.c
+--- a/mix2s_ori/kernel/events/core.c
++++ b/mix2s_cgroup/kernel/events/core.c
 @@ -11458,5 +11458,12 @@ struct cgroup_subsys perf_event_cgrp_subsys = {
  	.css_alloc	= perf_cgroup_css_alloc,
  	.css_free	= perf_cgroup_css_free,
@@ -9644,10 +9723,10 @@ index 547184b..5402560 100644
 +	.threaded	= true,
  };
  #endif /* CONFIG_CGROUP_PERF */
-diff --git a/kernel/exit.c b/kernel/exit.c
+diff --git a/mix2s_ori/kernel/exit.c b/mix2s_cgroup/kernel/exit.c
 index 09beccf..5e0ca9c 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
+--- a/mix2s_ori/kernel/exit.c
++++ b/mix2s_cgroup/kernel/exit.c
 @@ -178,6 +178,7 @@ repeat:
  	rcu_read_unlock();
  
@@ -9656,10 +9735,10 @@ index 09beccf..5e0ca9c 100644
  
  	write_lock_irq(&tasklist_lock);
  	ptrace_release_task(p);
-diff --git a/kernel/fork.c b/kernel/fork.c
+diff --git a/mix2s_ori/kernel/fork.c b/mix2s_cgroup/kernel/fork.c
 index 8f7ab49..49d84e1 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
+--- a/mix2s_ori/kernel/fork.c
++++ b/mix2s_cgroup/kernel/fork.c
 @@ -1069,7 +1069,9 @@ static int wait_for_vfork_done(struct task_struct *child,
  	int killed;
  
@@ -9670,10 +9749,10 @@ index 8f7ab49..49d84e1 100644
  	freezer_count();
  
  	if (killed) {
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+diff --git a/mix2s_ori/kernel/sched/core.c b/mix2s_cgroup/kernel/sched/core.c
 index 09981c5..4eea139 100755
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
+--- a/mix2s_ori/kernel/sched/core.c
++++ b/mix2s_cgroup/kernel/sched/core.c
 @@ -8045,7 +8045,7 @@ static void cpuset_cpu_active(void)
  		 */
  		cpuset_force_rebuild();
@@ -9692,10 +9771,10 @@ index 09981c5..4eea139 100755
  	} else {
  		num_cpus_frozen++;
  		partition_sched_domains(1, NULL, NULL);
-diff --git a/kernel/signal.c b/kernel/signal.c
+diff --git a/mix2s_ori/kernel/signal.c b/mix2s_cgroup/kernel/signal.c
 index 4d0f341..e814081 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
+--- a/mix2s_ori/kernel/signal.c
++++ b/mix2s_cgroup/kernel/signal.c
 @@ -38,6 +38,7 @@
  #include <linux/compiler.h>
  #include <linux/oom.h>
@@ -9864,10 +9943,10 @@ index 4d0f341..e814081 100644
  #ifdef CONFIG_COMPAT
  COMPAT_SYSCALL_DEFINE2(rt_sigsuspend, compat_sigset_t __user *, unewset, compat_size_t, sigsetsize)
  {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+diff --git a/mix2s_ori/mm/memcontrol.c b/mix2s_cgroup/mm/memcontrol.c
 index b508b47..a49cdf3 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
+--- a/mix2s_ori/mm/memcontrol.c
++++ b/mix2s_cgroup/mm/memcontrol.c
 @@ -966,7 +966,7 @@ int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
  		struct css_task_iter it;
  		struct task_struct *task;
@@ -9877,10 +9956,10 @@ index b508b47..a49cdf3 100644
  		while (!ret && (task = css_task_iter_next(&it)))
  			ret = fn(task, arg);
  		css_task_iter_end(&it);
-diff --git a/net/core/netclassid_cgroup.c b/net/core/netclassid_cgroup.c
+diff --git a/mix2s_ori/net/core/netclassid_cgroup.c b/mix2s_cgroup/net/core/netclassid_cgroup.c
 index db65b0c..dad43d1 100644
---- a/net/core/netclassid_cgroup.c
-+++ b/net/core/netclassid_cgroup.c
+--- a/mix2s_ori/net/core/netclassid_cgroup.c
++++ b/mix2s_cgroup/net/core/netclassid_cgroup.c
 @@ -128,7 +128,7 @@ static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
  
  	cs->classid = (u32)value;
@@ -9890,10 +9969,10 @@ index db65b0c..dad43d1 100644
  	while ((p = css_task_iter_next(&it))) {
  		update_classid_task(p, cs->classid);
  		cond_resched();
-diff --git a/tools/perf/util/cgroup.c b/tools/perf/util/cgroup.c
+diff --git a/mix2s_ori/tools/perf/util/cgroup.c b/mix2s_cgroup/tools/perf/util/cgroup.c
 index 5bc2b92..3415682 100644
---- a/tools/perf/util/cgroup.c
-+++ b/tools/perf/util/cgroup.c
+--- a/mix2s_ori/tools/perf/util/cgroup.c
++++ b/mix2s_cgroup/tools/perf/util/cgroup.c
 @@ -12,8 +12,8 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
  {
  	FILE *fp;
