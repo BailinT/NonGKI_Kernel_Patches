@@ -61,22 +61,21 @@ index 2035610..ea1aea5 100644
  		if (binder_has_work_ilocked(thread, do_proc_work))
  			break;
 diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
-index ff4cad3..b496e74 100644
+index ff4cad3..e5c8f0b 100644
 --- a/include/linux/cgroup_subsys.h
 +++ b/include/linux/cgroup_subsys.h
-@@ -71,6 +71,10 @@ SUBSYS(rdma)
+@@ -71,6 +71,9 @@ SUBSYS(rdma)
  SUBSYS(debug)
  #endif
  
 +#if IS_ENABLED(CONFIG_HW_CGROUP_WORKINGSET)
 +SUBSYS(workingset)
 +#endif
-+
  /*
   * DO NOT ADD ANY SUBSYSTEM WITHOUT EXPLICIT ACKS FROM CGROUP MAINTAINERS.
   */
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index ae461b8..324c52a 100755
+index ae461b8..5397257 100755
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
 @@ -1690,6 +1690,9 @@ struct task_struct {
@@ -89,7 +88,7 @@ index ae461b8..324c52a 100755
  	unsigned int ptrace;
  
  #ifdef CONFIG_SMP
-@@ -2534,6 +2537,11 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+@@ -2534,6 +2537,10 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
  #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
  #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
  
@@ -97,7 +96,6 @@ index ae461b8..324c52a 100755
 +#define PF_EXT_WSCG_MONITOR	0x00000001	/* I am in a workingset cgroup of monitor*/
 +#define PF_EXT_WSCG_PREREAD	0x00000002	/* I am a thread preread workingset by myself */
 +#endif
-+
  /*
   * Only the _current_ task can read/write to tsk->flags, but other
   * tasks can access tsk->flags in readonly mode for example
