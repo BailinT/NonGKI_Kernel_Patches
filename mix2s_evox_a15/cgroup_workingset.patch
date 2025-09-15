@@ -1,18 +1,18 @@
 diff --git a/drivers/android/binder.c b/drivers/android/binder.c
-index 2e1f631..61b0379 100644
+index 2035610..ea1aea5 100644
 --- a/drivers/android/binder.c
 +++ b/drivers/android/binder.c
-@@ -64,6 +64,9 @@
- #include <linux/ratelimit.h>
- #include <linux/syscalls.h>
- #include <linux/task_work.h>
+@@ -70,6 +70,9 @@
+ #include <linux/pid_namespace.h>
+ #include <linux/security.h>
+ #include <linux/spinlock.h>
 +#ifdef CONFIG_HW_CGROUP_WORKINGSET
 +#include <linux/workingset_cgroup.h>
 +#endif
+ #include "binder_alloc.h"
+ #include "binder_trace.h"
  
- #include <uapi/linux/eventpoll.h>
- #include <uapi/linux/android/binder.h>
-@@ -545,6 +548,35 @@ static void binder_wakeup_poll_threads_ilocked(struct binder_proc *proc,
+@@ -1054,6 +1057,35 @@ static void binder_wakeup_poll_threads_ilocked(struct binder_proc *proc,
  	}
  }
  
@@ -48,7 +48,7 @@ index 2e1f631..61b0379 100644
  /**
   * binder_select_thread_ilocked() - selects a thread for doing proc work.
   * @proc:	process to select a thread from
-@@ -4232,6 +4264,11 @@ static int binder_wait_for_work(struct binder_thread *thread,
+@@ -4200,6 +4232,11 @@ static int binder_wait_for_work(struct binder_thread *thread,
  	freezer_do_not_count();
  	binder_inner_proc_lock(proc);
  	for (;;) {
@@ -61,10 +61,10 @@ index 2e1f631..61b0379 100644
  		if (binder_has_work_ilocked(thread, do_proc_work))
  			break;
 diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
-index 7f4a2a5..7d39ac7 100644
+index ff4cad3..b496e74 100644
 --- a/include/linux/cgroup_subsys.h
 +++ b/include/linux/cgroup_subsys.h
-@@ -67,6 +67,10 @@ SUBSYS(pids)
+@@ -71,6 +71,10 @@ SUBSYS(rdma)
  SUBSYS(debug)
  #endif
  
@@ -76,7 +76,7 @@ index 7f4a2a5..7d39ac7 100644
   * DO NOT ADD ANY SUBSYSTEM WITHOUT EXPLICIT ACKS FROM CGROUP MAINTAINERS.
   */
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index c6875c6..a2448a8 100755
+index ae461b8..324c52a 100755
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
 @@ -1690,6 +1690,9 @@ struct task_struct {
@@ -89,7 +89,7 @@ index c6875c6..a2448a8 100755
  	unsigned int ptrace;
  
  #ifdef CONFIG_SMP
-@@ -2532,6 +2535,11 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+@@ -2534,6 +2537,11 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
  #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
  #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
  
@@ -103,7 +103,7 @@ index c6875c6..a2448a8 100755
   * tasks can access tsk->flags in readonly mode for example
 diff --git a/include/linux/workingset_cgroup.h b/include/linux/workingset_cgroup.h
 new file mode 100644
-index 0000000..203616b
+index 0000000..5ee8c9b
 --- /dev/null
 +++ b/include/linux/workingset_cgroup.h
 @@ -0,0 +1,80 @@
@@ -189,7 +189,7 @@ index 0000000..203616b
 +#endif /* CGROUP_WORKINGSET_H_INCLUDED */
 diff --git a/include/securec.h b/include/securec.h
 new file mode 100644
-index 0000000..ee70267
+index 0000000..7ca6185
 --- /dev/null
 +++ b/include/securec.h
 @@ -0,0 +1,631 @@
@@ -826,7 +826,7 @@ index 0000000..ee70267
 +
 diff --git a/include/securectype.h b/include/securectype.h
 new file mode 100644
-index 0000000..bd2a1ef
+index 0000000..767ce2a
 --- /dev/null
 +++ b/include/securectype.h
 @@ -0,0 +1,566 @@
@@ -1397,7 +1397,7 @@ index 0000000..bd2a1ef
 +#endif /* __SECURECTYPE_H__A7BBB686_AADA_451B_B9F9_44DACDAE18A7 */
 +
 diff --git a/init/Kconfig b/init/Kconfig
-index 71698d8..8dd41c5 100644
+index c65604c..65796c5 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -1030,6 +1030,8 @@ menuconfig CGROUPS
@@ -1410,10 +1410,10 @@ index 71698d8..8dd41c5 100644
         bool
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index f3a91fa..2e974ed 100644
+index 9fec7d3..74f2734 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -115,6 +115,7 @@ obj-$(CONFIG_TORTURE_TEST) += torture.o
+@@ -112,6 +112,7 @@ obj-$(CONFIG_TORTURE_TEST) += torture.o
  obj-$(CONFIG_MEMBARRIER) += membarrier.o
  
  obj-$(CONFIG_HAS_IOMEM) += memremap.o
@@ -1423,7 +1423,7 @@ index f3a91fa..2e974ed 100644
  
 diff --git a/kernel/cgroup_workingset/Kconfig b/kernel/cgroup_workingset/Kconfig
 new file mode 100644
-index 0000000..c5c13d8
+index 0000000..14d2d63
 --- /dev/null
 +++ b/kernel/cgroup_workingset/Kconfig
 @@ -0,0 +1,8 @@
@@ -1437,7 +1437,7 @@ index 0000000..c5c13d8
 +          preread those filepages.
 diff --git a/kernel/cgroup_workingset/Makefile b/kernel/cgroup_workingset/Makefile
 new file mode 100644
-index 0000000..4de4d34
+index 0000000..06efdb9
 --- /dev/null
 +++ b/kernel/cgroup_workingset/Makefile
 @@ -0,0 +1,4 @@
@@ -1447,7 +1447,7 @@ index 0000000..4de4d34
 +				cgroup_workingset_preread.o
 diff --git a/kernel/cgroup_workingset/cgroup_workingset.c b/kernel/cgroup_workingset/cgroup_workingset.c
 new file mode 100644
-index 0000000..53400e5
+index 0000000..0dc1b07
 --- /dev/null
 +++ b/kernel/cgroup_workingset/cgroup_workingset.c
 @@ -0,0 +1,1146 @@
@@ -2599,7 +2599,7 @@ index 0000000..53400e5
 +module_exit(cgroup_workingset_exit);
 diff --git a/kernel/cgroup_workingset/cgroup_workingset_backup.c b/kernel/cgroup_workingset/cgroup_workingset_backup.c
 new file mode 100644
-index 0000000..91fe174
+index 0000000..9ede759
 --- /dev/null
 +++ b/kernel/cgroup_workingset/cgroup_workingset_backup.c
 @@ -0,0 +1,890 @@
@@ -3495,7 +3495,7 @@ index 0000000..91fe174
 +}
 diff --git a/kernel/cgroup_workingset/cgroup_workingset_collect.c b/kernel/cgroup_workingset/cgroup_workingset_collect.c
 new file mode 100644
-index 0000000..a87323c
+index 0000000..ef1a56f
 --- /dev/null
 +++ b/kernel/cgroup_workingset/cgroup_workingset_collect.c
 @@ -0,0 +1,1243 @@
@@ -4744,7 +4744,7 @@ index 0000000..a87323c
 +}
 diff --git a/kernel/cgroup_workingset/cgroup_workingset_internal.h b/kernel/cgroup_workingset/cgroup_workingset_internal.h
 new file mode 100644
-index 0000000..89138e2
+index 0000000..5d75661
 --- /dev/null
 +++ b/kernel/cgroup_workingset/cgroup_workingset_internal.h
 @@ -0,0 +1,434 @@
@@ -5184,7 +5184,7 @@ index 0000000..89138e2
 +#endif /* CGROUP_WORKINGSET_INTERNAL_H */
 diff --git a/kernel/cgroup_workingset/cgroup_workingset_preread.c b/kernel/cgroup_workingset/cgroup_workingset_preread.c
 new file mode 100644
-index 0000000..9132787
+index 0000000..d39cefb
 --- /dev/null
 +++ b/kernel/cgroup_workingset/cgroup_workingset_preread.c
 @@ -0,0 +1,703 @@
@@ -5892,10 +5892,10 @@ index 0000000..9132787
 +	g_selfread_state = state;
 +}
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 8f7ab49..8a6d9ff 100644
+index 49d84e1..b46507b 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -1880,6 +1880,10 @@ static __latent_entropy struct task_struct *copy_process(
+@@ -1882,6 +1882,10 @@ static __latent_entropy struct task_struct *copy_process(
  	} else {
  		p->group_leader = p;
  		p->tgid = p->pid;
@@ -5907,7 +5907,7 @@ index 8f7ab49..8a6d9ff 100644
  
  	p->nr_dirtied = 0;
 diff --git a/lib/Makefile b/lib/Makefile
-index 4e807f6..ebd45cc 100644
+index 4e807f6..087ac1d 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
 @@ -244,3 +244,21 @@ obj-$(CONFIG_SBITMAP) += sbitmap.o
@@ -5932,10 +5932,9 @@ index 4e807f6..ebd45cc 100644
 +			      libc_sec/securec_v2/src/sscanf_s.o \
 +			      libc_sec/securec_v2/src/vsscanf_s.o \
 +			      libc_sec/securec_v2/src/secureinput_a.o
-\ No newline at end of file
 diff --git a/lib/libc_sec/README b/lib/libc_sec/README
 new file mode 100755
-index 0000000..b93849f
+index 0000000..7555ece
 --- /dev/null
 +++ b/lib/libc_sec/README
 @@ -0,0 +1,44 @@
@@ -5986,7 +5985,7 @@ index 0000000..b93849f
 \ No newline at end of file
 diff --git a/lib/libc_sec/android_sample.mk b/lib/libc_sec/android_sample.mk
 new file mode 100755
-index 0000000..81f9677
+index 0000000..d08e08b
 --- /dev/null
 +++ b/lib/libc_sec/android_sample.mk
 @@ -0,0 +1,127 @@
@@ -6119,7 +6118,7 @@ index 0000000..81f9677
 +#include $(BUILD_EXECUTABLE)
 diff --git a/lib/libc_sec/include/securec.h b/lib/libc_sec/include/securec.h
 new file mode 100755
-index 0000000..ff942aa
+index 0000000..70ff3cf
 --- /dev/null
 +++ b/lib/libc_sec/include/securec.h
 @@ -0,0 +1,455 @@
@@ -6580,7 +6579,7 @@ index 0000000..ff942aa
 +#endif/* __SECUREC_H__5D13A042_DC3F_4ED9_A8D1_882811274C27 */
 diff --git a/lib/libc_sec/include/securectype.h b/lib/libc_sec/include/securectype.h
 new file mode 100755
-index 0000000..d1276fd
+index 0000000..37107b6
 --- /dev/null
 +++ b/lib/libc_sec/include/securectype.h
 @@ -0,0 +1,292 @@
@@ -6878,7 +6877,7 @@ index 0000000..d1276fd
 +
 diff --git a/lib/libc_sec/sample.c b/lib/libc_sec/sample.c
 new file mode 100755
-index 0000000..b5bc832
+index 0000000..d9b1c1a
 --- /dev/null
 +++ b/lib/libc_sec/sample.c
 @@ -0,0 +1,1572 @@
@@ -8456,7 +8455,7 @@ index 0000000..b5bc832
 +}
 diff --git a/lib/libc_sec/sample.h b/lib/libc_sec/sample.h
 new file mode 100755
-index 0000000..0a33dd7
+index 0000000..69173fe
 --- /dev/null
 +++ b/lib/libc_sec/sample.h
 @@ -0,0 +1,15 @@
@@ -8477,7 +8476,7 @@ index 0000000..0a33dd7
 +
 diff --git a/lib/libc_sec/securec_v2/README b/lib/libc_sec/securec_v2/README
 new file mode 100644
-index 0000000..70d3d8a
+index 0000000..1bba6d7
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/README
 @@ -0,0 +1,44 @@
@@ -8527,7 +8526,7 @@ index 0000000..70d3d8a
 +7. Should place include "securec.h" in front of include <stdio.h> if the two file should both included in a C source file.
 diff --git a/lib/libc_sec/securec_v2/include/securec.h b/lib/libc_sec/securec_v2/include/securec.h
 new file mode 100644
-index 0000000..61424bc
+index 0000000..bffee57
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/include/securec.h
 @@ -0,0 +1,624 @@
@@ -9157,7 +9156,7 @@ index 0000000..61424bc
 +
 diff --git a/lib/libc_sec/securec_v2/include/securectype.h b/lib/libc_sec/securec_v2/include/securectype.h
 new file mode 100644
-index 0000000..cc222b5
+index 0000000..f4873e7
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/include/securectype.h
 @@ -0,0 +1,569 @@
@@ -9732,7 +9731,7 @@ index 0000000..cc222b5
 +
 diff --git a/lib/libc_sec/securec_v2/src/Makefile b/lib/libc_sec/securec_v2/src/Makefile
 new file mode 100644
-index 0000000..4882280
+index 0000000..90414d6
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/Makefile
 @@ -0,0 +1,160 @@
@@ -9898,7 +9897,7 @@ index 0000000..4882280
 +
 diff --git a/lib/libc_sec/securec_v2/src/fscanf_s.c b/lib/libc_sec/securec_v2/src/fscanf_s.c
 new file mode 100644
-index 0000000..67eeef4
+index 0000000..52fcf3a
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/fscanf_s.c
 @@ -0,0 +1,46 @@
@@ -9950,7 +9949,7 @@ index 0000000..67eeef4
 +
 diff --git a/lib/libc_sec/securec_v2/src/fwscanf_s.c b/lib/libc_sec/securec_v2/src/fwscanf_s.c
 new file mode 100644
-index 0000000..cd82d6e
+index 0000000..6729212
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/fwscanf_s.c
 @@ -0,0 +1,45 @@
@@ -10001,7 +10000,7 @@ index 0000000..cd82d6e
 +
 diff --git a/lib/libc_sec/securec_v2/src/gets_s.c b/lib/libc_sec/securec_v2/src/gets_s.c
 new file mode 100644
-index 0000000..cfbcdec
+index 0000000..cecf674
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/gets_s.c
 @@ -0,0 +1,64 @@
@@ -10071,7 +10070,7 @@ index 0000000..cfbcdec
 +
 diff --git a/lib/libc_sec/securec_v2/src/input.inl b/lib/libc_sec/securec_v2/src/input.inl
 new file mode 100644
-index 0000000..72fb025
+index 0000000..f7e16df
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/input.inl
 @@ -0,0 +1,2225 @@
@@ -12302,7 +12301,7 @@ index 0000000..72fb025
 +
 diff --git a/lib/libc_sec/securec_v2/src/memcpy_s.c b/lib/libc_sec/securec_v2/src/memcpy_s.c
 new file mode 100644
-index 0000000..f4dd184
+index 0000000..aedeffb
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/memcpy_s.c
 @@ -0,0 +1,556 @@
@@ -12864,7 +12863,7 @@ index 0000000..f4dd184
 +
 diff --git a/lib/libc_sec/securec_v2/src/memmove_s.c b/lib/libc_sec/securec_v2/src/memmove_s.c
 new file mode 100644
-index 0000000..e2e13b6
+index 0000000..4dd13d6
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/memmove_s.c
 @@ -0,0 +1,116 @@
@@ -12986,7 +12985,7 @@ index 0000000..e2e13b6
 +
 diff --git a/lib/libc_sec/securec_v2/src/memset_s.c b/lib/libc_sec/securec_v2/src/memset_s.c
 new file mode 100644
-index 0000000..9fca3a4
+index 0000000..2d6ffeb
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/memset_s.c
 @@ -0,0 +1,506 @@
@@ -13498,7 +13497,7 @@ index 0000000..9fca3a4
 +
 diff --git a/lib/libc_sec/securec_v2/src/output.inl b/lib/libc_sec/securec_v2/src/output.inl
 new file mode 100644
-index 0000000..330f17a
+index 0000000..14c93a1
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/output.inl
 @@ -0,0 +1,1666 @@
@@ -15170,7 +15169,7 @@ index 0000000..330f17a
 +
 diff --git a/lib/libc_sec/securec_v2/src/scanf_s.c b/lib/libc_sec/securec_v2/src/scanf_s.c
 new file mode 100644
-index 0000000..d25268e
+index 0000000..2310e12
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/scanf_s.c
 @@ -0,0 +1,44 @@
@@ -15220,7 +15219,7 @@ index 0000000..d25268e
 +
 diff --git a/lib/libc_sec/securec_v2/src/secinput.h b/lib/libc_sec/securec_v2/src/secinput.h
 new file mode 100644
-index 0000000..f325e51
+index 0000000..09327b5
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/secinput.h
 @@ -0,0 +1,186 @@
@@ -15412,7 +15411,7 @@ index 0000000..f325e51
 +
 diff --git a/lib/libc_sec/securec_v2/src/securecutil.c b/lib/libc_sec/securec_v2/src/securecutil.c
 new file mode 100644
-index 0000000..51d2b5b
+index 0000000..1a47a1b
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/securecutil.c
 @@ -0,0 +1,72 @@
@@ -15490,7 +15489,7 @@ index 0000000..51d2b5b
 +
 diff --git a/lib/libc_sec/securec_v2/src/securecutil.h b/lib/libc_sec/securec_v2/src/securecutil.h
 new file mode 100644
-index 0000000..6f3d1b1
+index 0000000..00c9e7f
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/securecutil.h
 @@ -0,0 +1,551 @@
@@ -16047,7 +16046,7 @@ index 0000000..6f3d1b1
 +
 diff --git a/lib/libc_sec/securec_v2/src/secureinput_a.c b/lib/libc_sec/securec_v2/src/secureinput_a.c
 new file mode 100644
-index 0000000..e8f0d0c
+index 0000000..74c9225
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/secureinput_a.c
 @@ -0,0 +1,31 @@
@@ -16084,7 +16083,7 @@ index 0000000..e8f0d0c
 +
 diff --git a/lib/libc_sec/securec_v2/src/secureinput_w.c b/lib/libc_sec/securec_v2/src/secureinput_w.c
 new file mode 100644
-index 0000000..b2f62fd
+index 0000000..8cb33ec
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/secureinput_w.c
 @@ -0,0 +1,68 @@
@@ -16158,7 +16157,7 @@ index 0000000..b2f62fd
 +
 diff --git a/lib/libc_sec/securec_v2/src/secureprintoutput.h b/lib/libc_sec/securec_v2/src/secureprintoutput.h
 new file mode 100644
-index 0000000..97d84e5
+index 0000000..086cc33
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/secureprintoutput.h
 @@ -0,0 +1,116 @@
@@ -16280,7 +16279,7 @@ index 0000000..97d84e5
 +
 diff --git a/lib/libc_sec/securec_v2/src/secureprintoutput_a.c b/lib/libc_sec/securec_v2/src/secureprintoutput_a.c
 new file mode 100644
-index 0000000..88ba7cf
+index 0000000..0fc4cb3
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/secureprintoutput_a.c
 @@ -0,0 +1,166 @@
@@ -16452,7 +16451,7 @@ index 0000000..88ba7cf
 +
 diff --git a/lib/libc_sec/securec_v2/src/secureprintoutput_w.c b/lib/libc_sec/securec_v2/src/secureprintoutput_w.c
 new file mode 100644
-index 0000000..7e32cb0
+index 0000000..52f47e1
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/secureprintoutput_w.c
 @@ -0,0 +1,139 @@
@@ -16597,7 +16596,7 @@ index 0000000..7e32cb0
 +
 diff --git a/lib/libc_sec/securec_v2/src/snprintf_s.c b/lib/libc_sec/securec_v2/src/snprintf_s.c
 new file mode 100644
-index 0000000..d9d7413
+index 0000000..9d21112
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/snprintf_s.c
 @@ -0,0 +1,103 @@
@@ -16706,7 +16705,7 @@ index 0000000..d9d7413
 +
 diff --git a/lib/libc_sec/securec_v2/src/sprintf_s.c b/lib/libc_sec/securec_v2/src/sprintf_s.c
 new file mode 100644
-index 0000000..39bb780
+index 0000000..0f574b5
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/sprintf_s.c
 @@ -0,0 +1,52 @@
@@ -16764,7 +16763,7 @@ index 0000000..39bb780
 +
 diff --git a/lib/libc_sec/securec_v2/src/sscanf_s.c b/lib/libc_sec/securec_v2/src/sscanf_s.c
 new file mode 100644
-index 0000000..aac5f01
+index 0000000..01d780d
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/sscanf_s.c
 @@ -0,0 +1,51 @@
@@ -16821,7 +16820,7 @@ index 0000000..aac5f01
 +
 diff --git a/lib/libc_sec/securec_v2/src/strcat_s.c b/lib/libc_sec/securec_v2/src/strcat_s.c
 new file mode 100644
-index 0000000..9e271ee
+index 0000000..e210199
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/strcat_s.c
 @@ -0,0 +1,94 @@
@@ -16921,7 +16920,7 @@ index 0000000..9e271ee
 +
 diff --git a/lib/libc_sec/securec_v2/src/strcpy_s.c b/lib/libc_sec/securec_v2/src/strcpy_s.c
 new file mode 100644
-index 0000000..9601d4d
+index 0000000..9019515
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/strcpy_s.c
 @@ -0,0 +1,346 @@
@@ -17273,7 +17272,7 @@ index 0000000..9601d4d
 +
 diff --git a/lib/libc_sec/securec_v2/src/strncat_s.c b/lib/libc_sec/securec_v2/src/strncat_s.c
 new file mode 100644
-index 0000000..ef746b9
+index 0000000..5896b8b
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/strncat_s.c
 @@ -0,0 +1,112 @@
@@ -17391,7 +17390,7 @@ index 0000000..ef746b9
 +
 diff --git a/lib/libc_sec/securec_v2/src/strncpy_s.c b/lib/libc_sec/securec_v2/src/strncpy_s.c
 new file mode 100644
-index 0000000..1458045
+index 0000000..7c65b7d
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/strncpy_s.c
 @@ -0,0 +1,138 @@
@@ -17535,7 +17534,7 @@ index 0000000..1458045
 +
 diff --git a/lib/libc_sec/securec_v2/src/strtok_s.c b/lib/libc_sec/securec_v2/src/strtok_s.c
 new file mode 100644
-index 0000000..8651dfb
+index 0000000..7f304ba
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/strtok_s.c
 @@ -0,0 +1,109 @@
@@ -17650,7 +17649,7 @@ index 0000000..8651dfb
 +
 diff --git a/lib/libc_sec/securec_v2/src/swprintf_s.c b/lib/libc_sec/securec_v2/src/swprintf_s.c
 new file mode 100644
-index 0000000..fe9f573
+index 0000000..ac9ae63
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/swprintf_s.c
 @@ -0,0 +1,41 @@
@@ -17697,7 +17696,7 @@ index 0000000..fe9f573
 +
 diff --git a/lib/libc_sec/securec_v2/src/swscanf_s.c b/lib/libc_sec/securec_v2/src/swscanf_s.c
 new file mode 100644
-index 0000000..cd8923e
+index 0000000..fbc7013
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/swscanf_s.c
 @@ -0,0 +1,47 @@
@@ -17750,7 +17749,7 @@ index 0000000..cd8923e
 +
 diff --git a/lib/libc_sec/securec_v2/src/vfscanf_s.c b/lib/libc_sec/securec_v2/src/vfscanf_s.c
 new file mode 100644
-index 0000000..04d30a7
+index 0000000..f276420
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vfscanf_s.c
 @@ -0,0 +1,57 @@
@@ -17813,7 +17812,7 @@ index 0000000..04d30a7
 +
 diff --git a/lib/libc_sec/securec_v2/src/vfwscanf_s.c b/lib/libc_sec/securec_v2/src/vfwscanf_s.c
 new file mode 100644
-index 0000000..950ce37
+index 0000000..85f9c81
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vfwscanf_s.c
 @@ -0,0 +1,60 @@
@@ -17879,7 +17878,7 @@ index 0000000..950ce37
 +
 diff --git a/lib/libc_sec/securec_v2/src/vscanf_s.c b/lib/libc_sec/securec_v2/src/vscanf_s.c
 new file mode 100644
-index 0000000..df9a62e
+index 0000000..9097607
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vscanf_s.c
 @@ -0,0 +1,56 @@
@@ -17941,7 +17940,7 @@ index 0000000..df9a62e
 +
 diff --git a/lib/libc_sec/securec_v2/src/vsnprintf_s.c b/lib/libc_sec/securec_v2/src/vsnprintf_s.c
 new file mode 100644
-index 0000000..fa5f3f5
+index 0000000..81fa3b2
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vsnprintf_s.c
 @@ -0,0 +1,131 @@
@@ -18078,7 +18077,7 @@ index 0000000..fa5f3f5
 +
 diff --git a/lib/libc_sec/securec_v2/src/vsprintf_s.c b/lib/libc_sec/securec_v2/src/vsprintf_s.c
 new file mode 100644
-index 0000000..a4e4a75
+index 0000000..9968e67
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vsprintf_s.c
 @@ -0,0 +1,60 @@
@@ -18144,7 +18143,7 @@ index 0000000..a4e4a75
 +
 diff --git a/lib/libc_sec/securec_v2/src/vsscanf_s.c b/lib/libc_sec/securec_v2/src/vsscanf_s.c
 new file mode 100644
-index 0000000..982793a
+index 0000000..23d1898
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vsscanf_s.c
 @@ -0,0 +1,80 @@
@@ -18230,7 +18229,7 @@ index 0000000..982793a
 +
 diff --git a/lib/libc_sec/securec_v2/src/vswprintf_s.c b/lib/libc_sec/securec_v2/src/vswprintf_s.c
 new file mode 100644
-index 0000000..94064d8
+index 0000000..41f00af
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vswprintf_s.c
 @@ -0,0 +1,55 @@
@@ -18291,7 +18290,7 @@ index 0000000..94064d8
 +
 diff --git a/lib/libc_sec/securec_v2/src/vswscanf_s.c b/lib/libc_sec/securec_v2/src/vswscanf_s.c
 new file mode 100644
-index 0000000..4fb11d1
+index 0000000..a8751a9
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vswscanf_s.c
 @@ -0,0 +1,72 @@
@@ -18369,7 +18368,7 @@ index 0000000..4fb11d1
 +
 diff --git a/lib/libc_sec/securec_v2/src/vwscanf_s.c b/lib/libc_sec/securec_v2/src/vwscanf_s.c
 new file mode 100644
-index 0000000..6785e29
+index 0000000..ee62e31
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/vwscanf_s.c
 @@ -0,0 +1,57 @@
@@ -18432,7 +18431,7 @@ index 0000000..6785e29
 +
 diff --git a/lib/libc_sec/securec_v2/src/wcscat_s.c b/lib/libc_sec/securec_v2/src/wcscat_s.c
 new file mode 100644
-index 0000000..8f627fa
+index 0000000..13c7613
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wcscat_s.c
 @@ -0,0 +1,100 @@
@@ -18538,7 +18537,7 @@ index 0000000..8f627fa
 +
 diff --git a/lib/libc_sec/securec_v2/src/wcscpy_s.c b/lib/libc_sec/securec_v2/src/wcscpy_s.c
 new file mode 100644
-index 0000000..7276b58
+index 0000000..961d2e6
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wcscpy_s.c
 @@ -0,0 +1,79 @@
@@ -18623,7 +18622,7 @@ index 0000000..7276b58
 +
 diff --git a/lib/libc_sec/securec_v2/src/wcsncat_s.c b/lib/libc_sec/securec_v2/src/wcsncat_s.c
 new file mode 100644
-index 0000000..491a6f7
+index 0000000..abbb3cb
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wcsncat_s.c
 @@ -0,0 +1,106 @@
@@ -18735,7 +18734,7 @@ index 0000000..491a6f7
 +
 diff --git a/lib/libc_sec/securec_v2/src/wcsncpy_s.c b/lib/libc_sec/securec_v2/src/wcsncpy_s.c
 new file mode 100644
-index 0000000..21142e3
+index 0000000..75c8d50
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wcsncpy_s.c
 @@ -0,0 +1,100 @@
@@ -18841,7 +18840,7 @@ index 0000000..21142e3
 +
 diff --git a/lib/libc_sec/securec_v2/src/wcstok_s.c b/lib/libc_sec/securec_v2/src/wcstok_s.c
 new file mode 100644
-index 0000000..d9841ec
+index 0000000..7803f1f
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wcstok_s.c
 @@ -0,0 +1,105 @@
@@ -18952,7 +18951,7 @@ index 0000000..d9841ec
 +
 diff --git a/lib/libc_sec/securec_v2/src/wmemcpy_s.c b/lib/libc_sec/securec_v2/src/wmemcpy_s.c
 new file mode 100644
-index 0000000..8b74f52
+index 0000000..b0f8006
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wmemcpy_s.c
 @@ -0,0 +1,64 @@
@@ -19022,7 +19021,7 @@ index 0000000..8b74f52
 +
 diff --git a/lib/libc_sec/securec_v2/src/wmemmove_s.c b/lib/libc_sec/securec_v2/src/wmemmove_s.c
 new file mode 100644
-index 0000000..5182230
+index 0000000..1065478
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wmemmove_s.c
 @@ -0,0 +1,63 @@
@@ -19091,7 +19090,7 @@ index 0000000..5182230
 +
 diff --git a/lib/libc_sec/securec_v2/src/wscanf_s.c b/lib/libc_sec/securec_v2/src/wscanf_s.c
 new file mode 100644
-index 0000000..a724a0f
+index 0000000..4dc5e48
 --- /dev/null
 +++ b/lib/libc_sec/securec_v2/src/wscanf_s.c
 @@ -0,0 +1,45 @@
@@ -19182,7 +19181,7 @@ index 0000000..f98d40d
 +
 diff --git a/lib/libc_sec/src/Makefile.Linux64 b/lib/libc_sec/src/Makefile.Linux64
 new file mode 100755
-index 0000000..21fdeac
+index 0000000..be0e3ca
 --- /dev/null
 +++ b/lib/libc_sec/src/Makefile.Linux64
 @@ -0,0 +1,27 @@
@@ -19216,7 +19215,7 @@ index 0000000..21fdeac
 \ No newline at end of file
 diff --git a/lib/libc_sec/src/MakefileCustom b/lib/libc_sec/src/MakefileCustom
 new file mode 100755
-index 0000000..a01ee58
+index 0000000..66bef91
 --- /dev/null
 +++ b/lib/libc_sec/src/MakefileCustom
 @@ -0,0 +1,123 @@
@@ -19346,7 +19345,7 @@ index 0000000..a01ee58
 \ No newline at end of file
 diff --git a/lib/libc_sec/src/fscanf_s.c b/lib/libc_sec/src/fscanf_s.c
 new file mode 100755
-index 0000000..d2f93ac
+index 0000000..72445f8
 --- /dev/null
 +++ b/lib/libc_sec/src/fscanf_s.c
 @@ -0,0 +1,58 @@
@@ -19410,7 +19409,7 @@ index 0000000..d2f93ac
 +
 diff --git a/lib/libc_sec/src/fwscanf_s.c b/lib/libc_sec/src/fwscanf_s.c
 new file mode 100755
-index 0000000..69b9bdd
+index 0000000..bf43095
 --- /dev/null
 +++ b/lib/libc_sec/src/fwscanf_s.c
 @@ -0,0 +1,58 @@
@@ -19474,7 +19473,7 @@ index 0000000..69b9bdd
 +
 diff --git a/lib/libc_sec/src/gets_s.c b/lib/libc_sec/src/gets_s.c
 new file mode 100755
-index 0000000..cfb925c
+index 0000000..f7c8c7a
 --- /dev/null
 +++ b/lib/libc_sec/src/gets_s.c
 @@ -0,0 +1,90 @@
@@ -19570,7 +19569,7 @@ index 0000000..cfb925c
 +
 diff --git a/lib/libc_sec/src/input.h b/lib/libc_sec/src/input.h
 new file mode 100755
-index 0000000..2468aa1
+index 0000000..080425f
 --- /dev/null
 +++ b/lib/libc_sec/src/input.h
 @@ -0,0 +1,2365 @@
@@ -21941,7 +21940,7 @@ index 0000000..2468aa1
 +
 diff --git a/lib/libc_sec/src/memcpy_s.c b/lib/libc_sec/src/memcpy_s.c
 new file mode 100755
-index 0000000..cb5326a
+index 0000000..1c73d5f
 --- /dev/null
 +++ b/lib/libc_sec/src/memcpy_s.c
 @@ -0,0 +1,363 @@
@@ -22310,7 +22309,7 @@ index 0000000..cb5326a
 +
 diff --git a/lib/libc_sec/src/memmove_s.c b/lib/libc_sec/src/memmove_s.c
 new file mode 100644
-index 0000000..3a726fc
+index 0000000..3fa2232
 --- /dev/null
 +++ b/lib/libc_sec/src/memmove_s.c
 @@ -0,0 +1,90 @@
@@ -22406,7 +22405,7 @@ index 0000000..3a726fc
 +
 diff --git a/lib/libc_sec/src/memset_s.c b/lib/libc_sec/src/memset_s.c
 new file mode 100755
-index 0000000..5591439
+index 0000000..888d719
 --- /dev/null
 +++ b/lib/libc_sec/src/memset_s.c
 @@ -0,0 +1,312 @@
@@ -22724,7 +22723,7 @@ index 0000000..5591439
 +
 diff --git a/lib/libc_sec/src/output.inl b/lib/libc_sec/src/output.inl
 new file mode 100755
-index 0000000..475933b
+index 0000000..642a3ad
 --- /dev/null
 +++ b/lib/libc_sec/src/output.inl
 @@ -0,0 +1,1382 @@
@@ -24112,7 +24111,7 @@ index 0000000..475933b
 +
 diff --git a/lib/libc_sec/src/scanf_s.c b/lib/libc_sec/src/scanf_s.c
 new file mode 100755
-index 0000000..7ec3ef6
+index 0000000..46fb311
 --- /dev/null
 +++ b/lib/libc_sec/src/scanf_s.c
 @@ -0,0 +1,59 @@
@@ -24177,7 +24176,7 @@ index 0000000..7ec3ef6
 +
 diff --git a/lib/libc_sec/src/secinput.h b/lib/libc_sec/src/secinput.h
 new file mode 100755
-index 0000000..a58c462
+index 0000000..952e7bf
 --- /dev/null
 +++ b/lib/libc_sec/src/secinput.h
 @@ -0,0 +1,71 @@
@@ -24254,7 +24253,7 @@ index 0000000..a58c462
 +
 diff --git a/lib/libc_sec/src/securecutil.c b/lib/libc_sec/src/securecutil.c
 new file mode 100755
-index 0000000..8112da9
+index 0000000..5c65fc6
 --- /dev/null
 +++ b/lib/libc_sec/src/securecutil.c
 @@ -0,0 +1,525 @@
@@ -24785,7 +24784,7 @@ index 0000000..8112da9
 +#endif
 diff --git a/lib/libc_sec/src/securecutil.h b/lib/libc_sec/src/securecutil.h
 new file mode 100755
-index 0000000..470c299
+index 0000000..6b6c39c
 --- /dev/null
 +++ b/lib/libc_sec/src/securecutil.h
 @@ -0,0 +1,152 @@
@@ -24943,7 +24942,7 @@ index 0000000..470c299
 +
 diff --git a/lib/libc_sec/src/secureinput_a.c b/lib/libc_sec/src/secureinput_a.c
 new file mode 100755
-index 0000000..2306790
+index 0000000..0fb0ee7
 --- /dev/null
 +++ b/lib/libc_sec/src/secureinput_a.c
 @@ -0,0 +1,33 @@
@@ -24982,7 +24981,7 @@ index 0000000..2306790
 +
 diff --git a/lib/libc_sec/src/secureinput_w.c b/lib/libc_sec/src/secureinput_w.c
 new file mode 100755
-index 0000000..b9a91cf
+index 0000000..36b5f12
 --- /dev/null
 +++ b/lib/libc_sec/src/secureinput_w.c
 @@ -0,0 +1,46 @@
@@ -25034,7 +25033,7 @@ index 0000000..b9a91cf
 +
 diff --git a/lib/libc_sec/src/secureprintoutput.h b/lib/libc_sec/src/secureprintoutput.h
 new file mode 100755
-index 0000000..adc1371
+index 0000000..3808020
 --- /dev/null
 +++ b/lib/libc_sec/src/secureprintoutput.h
 @@ -0,0 +1,153 @@
@@ -25193,7 +25192,7 @@ index 0000000..adc1371
 +
 diff --git a/lib/libc_sec/src/secureprintoutput_a.c b/lib/libc_sec/src/secureprintoutput_a.c
 new file mode 100755
-index 0000000..252473e
+index 0000000..b76b07d
 --- /dev/null
 +++ b/lib/libc_sec/src/secureprintoutput_a.c
 @@ -0,0 +1,38 @@
@@ -25237,7 +25236,7 @@ index 0000000..252473e
 +
 diff --git a/lib/libc_sec/src/secureprintoutput_w.c b/lib/libc_sec/src/secureprintoutput_w.c
 new file mode 100755
-index 0000000..333e588
+index 0000000..fe31633
 --- /dev/null
 +++ b/lib/libc_sec/src/secureprintoutput_w.c
 @@ -0,0 +1,116 @@
@@ -25359,7 +25358,7 @@ index 0000000..333e588
 +
 diff --git a/lib/libc_sec/src/snprintf_s.c b/lib/libc_sec/src/snprintf_s.c
 new file mode 100755
-index 0000000..6d5c7de
+index 0000000..2727f5c
 --- /dev/null
 +++ b/lib/libc_sec/src/snprintf_s.c
 @@ -0,0 +1,61 @@
@@ -25426,7 +25425,7 @@ index 0000000..6d5c7de
 +
 diff --git a/lib/libc_sec/src/sprintf_s.c b/lib/libc_sec/src/sprintf_s.c
 new file mode 100755
-index 0000000..d1de558
+index 0000000..110ea2a
 --- /dev/null
 +++ b/lib/libc_sec/src/sprintf_s.c
 @@ -0,0 +1,58 @@
@@ -25490,7 +25489,7 @@ index 0000000..d1de558
 +
 diff --git a/lib/libc_sec/src/sscanf_s.c b/lib/libc_sec/src/sscanf_s.c
 new file mode 100755
-index 0000000..2a9830e
+index 0000000..f045327
 --- /dev/null
 +++ b/lib/libc_sec/src/sscanf_s.c
 @@ -0,0 +1,59 @@
@@ -25555,7 +25554,7 @@ index 0000000..2a9830e
 +
 diff --git a/lib/libc_sec/src/strcat_s.c b/lib/libc_sec/src/strcat_s.c
 new file mode 100755
-index 0000000..9d13f96
+index 0000000..383e963
 --- /dev/null
 +++ b/lib/libc_sec/src/strcat_s.c
 @@ -0,0 +1,141 @@
@@ -25702,7 +25701,7 @@ index 0000000..9d13f96
 +
 diff --git a/lib/libc_sec/src/strcpy_s.c b/lib/libc_sec/src/strcpy_s.c
 new file mode 100644
-index 0000000..6362a1f
+index 0000000..bffbca0
 --- /dev/null
 +++ b/lib/libc_sec/src/strcpy_s.c
 @@ -0,0 +1,210 @@
@@ -25918,7 +25917,7 @@ index 0000000..6362a1f
 +
 diff --git a/lib/libc_sec/src/strncat_s.c b/lib/libc_sec/src/strncat_s.c
 new file mode 100644
-index 0000000..6276262
+index 0000000..9ca4c13
 --- /dev/null
 +++ b/lib/libc_sec/src/strncat_s.c
 @@ -0,0 +1,159 @@
@@ -26083,7 +26082,7 @@ index 0000000..6276262
 +
 diff --git a/lib/libc_sec/src/strncpy_s.c b/lib/libc_sec/src/strncpy_s.c
 new file mode 100755
-index 0000000..6b1a9c4
+index 0000000..336b7dd
 --- /dev/null
 +++ b/lib/libc_sec/src/strncpy_s.c
 @@ -0,0 +1,152 @@
@@ -26241,7 +26240,7 @@ index 0000000..6b1a9c4
 +
 diff --git a/lib/libc_sec/src/strtok_s.c b/lib/libc_sec/src/strtok_s.c
 new file mode 100755
-index 0000000..62fe4ba
+index 0000000..537dbc4
 --- /dev/null
 +++ b/lib/libc_sec/src/strtok_s.c
 @@ -0,0 +1,115 @@
@@ -26362,7 +26361,7 @@ index 0000000..62fe4ba
 +
 diff --git a/lib/libc_sec/src/swprintf_s.c b/lib/libc_sec/src/swprintf_s.c
 new file mode 100755
-index 0000000..d8136b7
+index 0000000..0b7068a
 --- /dev/null
 +++ b/lib/libc_sec/src/swprintf_s.c
 @@ -0,0 +1,55 @@
@@ -26423,7 +26422,7 @@ index 0000000..d8136b7
 +
 diff --git a/lib/libc_sec/src/swscanf_s.c b/lib/libc_sec/src/swscanf_s.c
 new file mode 100755
-index 0000000..c928472
+index 0000000..102a8c8
 --- /dev/null
 +++ b/lib/libc_sec/src/swscanf_s.c
 @@ -0,0 +1,59 @@
@@ -26488,7 +26487,7 @@ index 0000000..c928472
 +
 diff --git a/lib/libc_sec/src/vfscanf_s.c b/lib/libc_sec/src/vfscanf_s.c
 new file mode 100755
-index 0000000..b304919
+index 0000000..665b142
 --- /dev/null
 +++ b/lib/libc_sec/src/vfscanf_s.c
 @@ -0,0 +1,77 @@
@@ -26571,7 +26570,7 @@ index 0000000..b304919
 +
 diff --git a/lib/libc_sec/src/vfwscanf_s.c b/lib/libc_sec/src/vfwscanf_s.c
 new file mode 100755
-index 0000000..1996efc
+index 0000000..b68f60f
 --- /dev/null
 +++ b/lib/libc_sec/src/vfwscanf_s.c
 @@ -0,0 +1,77 @@
@@ -26654,7 +26653,7 @@ index 0000000..1996efc
 +
 diff --git a/lib/libc_sec/src/vscanf_s.c b/lib/libc_sec/src/vscanf_s.c
 new file mode 100755
-index 0000000..10d0d3d
+index 0000000..2ea6070
 --- /dev/null
 +++ b/lib/libc_sec/src/vscanf_s.c
 @@ -0,0 +1,81 @@
@@ -26741,7 +26740,7 @@ index 0000000..10d0d3d
 +
 diff --git a/lib/libc_sec/src/vsnprintf_s.c b/lib/libc_sec/src/vsnprintf_s.c
 new file mode 100755
-index 0000000..471b092
+index 0000000..4be8392
 --- /dev/null
 +++ b/lib/libc_sec/src/vsnprintf_s.c
 @@ -0,0 +1,110 @@
@@ -26857,7 +26856,7 @@ index 0000000..471b092
 +
 diff --git a/lib/libc_sec/src/vsprintf_s.c b/lib/libc_sec/src/vsprintf_s.c
 new file mode 100755
-index 0000000..dc3ab22
+index 0000000..868d3b6
 --- /dev/null
 +++ b/lib/libc_sec/src/vsprintf_s.c
 @@ -0,0 +1,76 @@
@@ -26939,7 +26938,7 @@ index 0000000..dc3ab22
 +
 diff --git a/lib/libc_sec/src/vsscanf_s.c b/lib/libc_sec/src/vsscanf_s.c
 new file mode 100755
-index 0000000..a20d4df
+index 0000000..22eb3f6
 --- /dev/null
 +++ b/lib/libc_sec/src/vsscanf_s.c
 @@ -0,0 +1,94 @@
@@ -27039,7 +27038,7 @@ index 0000000..a20d4df
 +
 diff --git a/lib/libc_sec/src/vswprintf_s.c b/lib/libc_sec/src/vswprintf_s.c
 new file mode 100755
-index 0000000..8f21aa2
+index 0000000..8cd260b
 --- /dev/null
 +++ b/lib/libc_sec/src/vswprintf_s.c
 @@ -0,0 +1,110 @@
@@ -27155,7 +27154,7 @@ index 0000000..8f21aa2
 +
 diff --git a/lib/libc_sec/src/vswscanf_s.c b/lib/libc_sec/src/vswscanf_s.c
 new file mode 100755
-index 0000000..d78f12f
+index 0000000..4f44a0c
 --- /dev/null
 +++ b/lib/libc_sec/src/vswscanf_s.c
 @@ -0,0 +1,90 @@
@@ -27251,7 +27250,7 @@ index 0000000..d78f12f
 +
 diff --git a/lib/libc_sec/src/vwscanf_s.c b/lib/libc_sec/src/vwscanf_s.c
 new file mode 100755
-index 0000000..735878a
+index 0000000..630a3f1
 --- /dev/null
 +++ b/lib/libc_sec/src/vwscanf_s.c
 @@ -0,0 +1,80 @@
@@ -27337,7 +27336,7 @@ index 0000000..735878a
 +
 diff --git a/lib/libc_sec/src/wcscat_s.c b/lib/libc_sec/src/wcscat_s.c
 new file mode 100755
-index 0000000..18bcfa9
+index 0000000..d12166e
 --- /dev/null
 +++ b/lib/libc_sec/src/wcscat_s.c
 @@ -0,0 +1,146 @@
@@ -27489,7 +27488,7 @@ index 0000000..18bcfa9
 +
 diff --git a/lib/libc_sec/src/wcscpy_s.c b/lib/libc_sec/src/wcscpy_s.c
 new file mode 100755
-index 0000000..4247e73
+index 0000000..72c127f
 --- /dev/null
 +++ b/lib/libc_sec/src/wcscpy_s.c
 @@ -0,0 +1,112 @@
@@ -27607,7 +27606,7 @@ index 0000000..4247e73
 +
 diff --git a/lib/libc_sec/src/wcsncat_s.c b/lib/libc_sec/src/wcsncat_s.c
 new file mode 100755
-index 0000000..6255071
+index 0000000..f7e7ae6
 --- /dev/null
 +++ b/lib/libc_sec/src/wcsncat_s.c
 @@ -0,0 +1,159 @@
@@ -27772,7 +27771,7 @@ index 0000000..6255071
 +
 diff --git a/lib/libc_sec/src/wcsncpy_s.c b/lib/libc_sec/src/wcsncpy_s.c
 new file mode 100755
-index 0000000..0aea380
+index 0000000..7af5836
 --- /dev/null
 +++ b/lib/libc_sec/src/wcsncpy_s.c
 @@ -0,0 +1,130 @@
@@ -27908,7 +27907,7 @@ index 0000000..0aea380
 +
 diff --git a/lib/libc_sec/src/wcstok_s.c b/lib/libc_sec/src/wcstok_s.c
 new file mode 100755
-index 0000000..3c5f25f
+index 0000000..e1ceced
 --- /dev/null
 +++ b/lib/libc_sec/src/wcstok_s.c
 @@ -0,0 +1,107 @@
@@ -28021,7 +28020,7 @@ index 0000000..3c5f25f
 +
 diff --git a/lib/libc_sec/src/wmemcpy_s.c b/lib/libc_sec/src/wmemcpy_s.c
 new file mode 100644
-index 0000000..97b2652
+index 0000000..9b78860
 --- /dev/null
 +++ b/lib/libc_sec/src/wmemcpy_s.c
 @@ -0,0 +1,69 @@
@@ -28096,7 +28095,7 @@ index 0000000..97b2652
 +
 diff --git a/lib/libc_sec/src/wmemmove_s.c b/lib/libc_sec/src/wmemmove_s.c
 new file mode 100644
-index 0000000..844c4d7
+index 0000000..7958780
 --- /dev/null
 +++ b/lib/libc_sec/src/wmemmove_s.c
 @@ -0,0 +1,69 @@
@@ -28171,7 +28170,7 @@ index 0000000..844c4d7
 +
 diff --git a/lib/libc_sec/src/wscanf_s.c b/lib/libc_sec/src/wscanf_s.c
 new file mode 100755
-index 0000000..04da35e
+index 0000000..08fb05b
 --- /dev/null
 +++ b/lib/libc_sec/src/wscanf_s.c
 @@ -0,0 +1,60 @@
@@ -28236,32 +28235,31 @@ index 0000000..04da35e
 +
 +
 diff --git a/mm/filemap.c b/mm/filemap.c
-index a70d9f5..3d15b41 100644
+index a70d9f5..e34e524 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -49,6 +49,10 @@
- 
- #include <asm/mman.h>
+@@ -39,6 +39,10 @@
+ #include <linux/psi.h>
+ #include "internal.h"
  
 +#ifdef CONFIG_HW_CGROUP_WORKINGSET
 +#include <linux/workingset_cgroup.h>
 +#endif
 +
- int want_old_faultaround_pte = 1;
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/filemap.h>
  
- /*
-@@ -2066,7 +2070,9 @@ out:
- 	ra->prev_pos = prev_index;
+@@ -2067,6 +2071,9 @@ out:
  	ra->prev_pos <<= PAGE_SHIFT;
  	ra->prev_pos |= prev_offset;
--
+ 
 +#ifdef CONFIG_HW_CGROUP_WORKINGSET
 +	workingset_pagecache_on_readfile(filp, ppos, index, offset);
 +#endif
  	*ppos = ((loff_t)index << PAGE_SHIFT) + offset;
  	file_accessed(filp);
  	return written ? written : error;
-@@ -2318,6 +2324,9 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+@@ -2318,6 +2325,9 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  	 * Do we have something in the page cache already?
  	 */
  	page = find_get_page(mapping, offset);
