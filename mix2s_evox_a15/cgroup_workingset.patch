@@ -1,18 +1,16 @@
-diff --git a/drivers/android/binder.c b/drivers/android/binder.c
-index 2e1f631..61b0379 100644
---- a/drivers/android/binder.c
-+++ b/drivers/android/binder.c
-@@ -64,6 +64,9 @@
- #include <linux/ratelimit.h>
- #include <linux/syscalls.h>
- #include <linux/task_work.h>
+--- a/drivers/android/binder.c	2025-09-16 00:11:41.741642501 +0800
++++ b/drivers/android/binder.c	2025-09-16 00:34:55.734694355 +0800
+@@ -61,6 +61,9 @@
+ #include <linux/uaccess.h>
+ #include <linux/pid_namespace.h>
+ #include <linux/security.h>
 +#ifdef CONFIG_HW_CGROUP_WORKINGSET
 +#include <linux/workingset_cgroup.h>
 +#endif
- 
- #include <uapi/linux/eventpoll.h>
- #include <uapi/linux/android/binder.h>
-@@ -545,6 +548,35 @@ static void binder_wakeup_poll_threads_ilocked(struct binder_proc *proc,
+ #include <linux/spinlock.h>
+ #include <linux/ratelimit.h>
+ #include <linux/syscalls.h>
+@@ -568,6 +571,35 @@
  	}
  }
  
@@ -48,7 +46,7 @@ index 2e1f631..61b0379 100644
  /**
   * binder_select_thread_ilocked() - selects a thread for doing proc work.
   * @proc:	process to select a thread from
-@@ -4232,6 +4264,11 @@ static int binder_wait_for_work(struct binder_thread *thread,
+@@ -4376,6 +4408,11 @@
  	freezer_do_not_count();
  	binder_inner_proc_lock(proc);
  	for (;;) {
