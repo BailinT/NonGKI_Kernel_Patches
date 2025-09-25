@@ -1,18 +1,15 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 1d6a377..46d3390 100644
+index 001f314..26e5c99 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -27,6 +27,9 @@
- #include <linux/task_work.h>
- #include <linux/sched/task.h>
- #include <linux/fslog.h>
+@@ -32,9 +32,39 @@
+ #include <linux/kdp.h>
+ #endif
+ 
 +#if defined(CONFIG_KSU_SUSFS_SUS_MOUNT) || defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 +#include <linux/susfs_def.h>
 +#endif
- 
- #ifdef CONFIG_KDP_NS
- #include <linux/kdp.h>
-@@ -35,6 +38,32 @@
++
  #include "pnode.h"
  #include "internal.h"
  
@@ -45,10 +42,10 @@ index 1d6a377..46d3390 100644
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -3625,6 +3654,14 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
- 	namespace_lock();
- 	/* First pass: copy the tree topology */
+@@ -3597,6 +3627,14 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
+ 	if (user_ns != ns->user_ns)
+ 		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +	// Always let clone_mnt() in copy_tree() know it is from copy_mnt_ns()
 +	copy_flags |= CL_COPY_MNT_NS;
@@ -57,9 +54,9 @@ index 1d6a377..46d3390 100644
 +		copy_flags |= CL_ZYGOTE_COPY_MNT_NS;
 +	}
 +#endif
- 	if (user_ns != ns->user_ns)
- 		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
  #ifdef CONFIG_KDP_NS
+ 	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
+ #else
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
 index 38437f5..e4b7d2d 100644
 --- a/fs/proc/cmdline.c
@@ -102,3 +99,26 @@ index c34b3b8..2524744 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
+diff --git a/kernel/sys.c b/kernel/sys.c
+index a6246ab..c39b343 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1196,12 +1196,18 @@ static int override_release(char __user *release, size_t len)
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++extern void susfs_spoof_uname(struct new_utsname* tmp);
++#endif
+ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+ {
+ 	struct new_utsname tmp;
+ 
+ 	down_read(&uts_sem);
+ 	memcpy(&tmp, utsname(), sizeof(tmp));
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++	susfs_spoof_uname(&tmp);
++#endif
+ 	if (!strncmp(current->comm, "bpfloader", 9) ||
+ 	    !strncmp(current->comm, "netbpfload", 10) ||
+ 	    !strncmp(current->comm, "netd", 4)) {
