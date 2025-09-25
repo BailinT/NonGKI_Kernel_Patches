@@ -1,0 +1,39 @@
+--- a/fs/namespace.c	2025-09-25 17:38:53.796780938 +0800
++++ b/fs/namespace.c	2025-09-25 17:49:43.280352142 +0800
+@@ -3755,28 +3751,21 @@
+ 			break;
+ #ifdef CONFIG_KDP_NS
+ 		while (p->mnt->mnt_root != q->mnt->mnt_root)
+-#else
+-		while (p->mnt.mnt_root != q->mnt.mnt_root)
+ #endif
+-			p = next_mnt(p, old);
+ 	}
+ #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+-	// q->mnt.susfs_mnt_id_backup -> original mnt_id
+-	// q->mnt_id -> will be modified to the fake mnt_id
+-
+-	// Here We are only interested in processes of which original mnt namespace belongs to zygote 
+-	// Also we just make use of existing 'q' mount pointer, no need to delcare extra mount pointer
+-	if (is_zygote_pid) {
+-		last_entry_mnt_id = list_first_entry(&new_ns->list, struct mount, mnt_list)->mnt_id;
+-		list_for_each_entry(q, &new_ns->list, mnt_list) {
+-			if (unlikely(q->mnt_id >= DEFAULT_SUS_MNT_ID)) {
+-				continue;
+-			}
++		// Here We are only interested in processes of which original mnt namespace belongs to zygote
++		if (likely(is_zygote_pid && (q->mnt_id < DEFAULT_SUS_MNT_ID))) {
++			// q->mnt.susfs_mnt_id_backup -> original mnt_id
++			// q->mnt_id -> to be modified to the fake mnt_id
+ 			q->mnt.susfs_mnt_id_backup = q->mnt_id;
+-			q->mnt_id = last_entry_mnt_id++;
++			q->mnt_id = ++last_entry_mnt_id;
+ 		}
+ 	}
+ #endif
++		while (p->mnt.mnt_root != q->mnt.mnt_root)
++			p = next_mnt(p, old);
++	}
+ 
+ 	namespace_unlock();
+ 
