@@ -1,8 +1,8 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 0d39f09..44225c6 100644
+index 0d39f09..de1a066 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -3720,6 +3720,16 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3720,6 +3720,15 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  		q = next_mnt(q, new);
  		if (!q)
  			break;
@@ -14,12 +14,11 @@ index 0d39f09..44225c6 100644
 +			q->mnt.susfs_mnt_id_backup = q->mnt_id;
 +			q->mnt_id = ++last_entry_mnt_id;
 +		}
-+	}
 +#endif
  #ifdef CONFIG_KDP_NS
  		while (p->mnt->mnt_root != q->mnt->mnt_root)
  #else
-@@ -3727,23 +3737,6 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3727,23 +3736,6 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  #endif
  			p = next_mnt(p, old);
  	}
