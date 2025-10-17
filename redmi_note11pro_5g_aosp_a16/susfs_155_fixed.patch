@@ -26,7 +26,7 @@ index 944bb60..4a8106c 100644
 +		if (kern_path(dpath, 0, &path)) {
 +			goto out_free_pathname;
 +		}
-+		seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\n",
++		seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\nino:\t%lu\n",
 +				(long long)file->f_pos, f_flags,
 +				mnt->mnt_id,
 +				path.dentry->d_inode->i_ino);
@@ -37,7 +37,7 @@ index 944bb60..4a8106c 100644
 +		kfree(pathname);
 +	}
 +out_seq_printf:
-+	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\n",
++	seq_printf(m, "pos:\t%lli\nflags:\t0%o\nmnt_id:\t%i\nino:\t%lu\n",
 +		   (long long)file->f_pos, f_flags,
 +		   mnt->mnt_id,
 +		   file_inode(file)->i_ino);
