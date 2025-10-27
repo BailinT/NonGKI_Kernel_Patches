@@ -1,0 +1,27 @@
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 3adc82a..71e1065 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -96,6 +96,9 @@
+ #include <linux/cpufreq_times.h>
+ #include <linux/task_integrity.h>
+ #include <linux/proca.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++#include <linux/susfs_def.h>
++#endif
+ #ifdef CONFIG_HARDWALL
+ #include <asm/hardwall.h>
+ #endif
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 1c18204..796c99a 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -21,7 +21,7 @@
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
+ #include <linux/freezer.h>
+-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP)
+ #include <linux/susfs_def.h>
+ #endif
+ 
