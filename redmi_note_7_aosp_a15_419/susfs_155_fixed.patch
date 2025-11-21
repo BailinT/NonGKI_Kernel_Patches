@@ -1,0 +1,65 @@
+diff --color -uNr a/fs/proc/cmdline.c b/fs/proc/cmdline.c
+--- a/fs/proc/cmdline.c	2025-10-10 09:06:56.000000000 +0800
++++ b/fs/proc/cmdline.c	2025-10-10 17:37:21.000000000 +0800
+@@ -3,6 +3,9 @@
+ #include <linux/init.h>
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#include <linux/susfs_def.h>
++#endif
+ #ifdef CONFIG_INITRAMFS_IGNORE_SKIP_FLAG
+ #include <asm/setup.h>
+ #endif
+@@ -32,6 +35,11 @@
+ #ifdef CONFIG_INITRAMFS_IGNORE_SKIP_FLAG
+ 	seq_puts(m, proc_command_line);
+ #else
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++			if (dentry->d_inode && unlikely(dentry->d_inode->i_state & INODE_STATE_SUS_PATH) && likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC)) {
++				continue;
++			}
++#endif
+ 	seq_puts(m, saved_command_line);
+ #endif
+ 	seq_putc(m, '\n');
+diff --color -uNr a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c	2025-10-10 09:07:04.000000000 +0800
++++ b/fs/proc/task_mmu.c	2025-10-11 00:32:18.370583303 +0800
+@@ -21,6 +21,9 @@
+ #include <linux/pkeys.h>
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
+diff --color -uNr a/include/linux/sched.h b/include/linux/sched.h
+--- a/include/linux/sched.h	2025-10-10 09:07:04.000000000 +0800
++++ b/include/linux/sched.h	2025-10-10 17:41:20.000000000 +0800
+@@ -1513,12 +1513,22 @@
+ #endif
+ 
+ 	ANDROID_KABI_RESERVE(7);
+-	ANDROID_KABI_RESERVE(8);
++#ifdef CONFIG_KSU_SUSFS
++	ANDROID_KABI_USE(8, u64 susfs_last_fake_mnt_id);
++#else
++ 	ANDROID_KABI_RESERVE(8);
++#endif
+ 
+ 	/*
+ 	 * New fields for task_struct should be added above here, so that
+ 	 * they are included in the randomized portion of task_struct.
+ 	 */
++#if defined(CONFIG_KSU_SUSFS) && !defined(ANDROID_KABI_RESERVE)
++	u64 susfs_task_state;
++#endif
++#if defined(CONFIG_KSU_SUSFS) && !defined(ANDROID_KABI_RESERVE)
++	u64 susfs_last_fake_mnt_id;
++#endif
+ 	randomized_struct_fields_end
+ 
+ 	/* CPU-specific state of this task: */
