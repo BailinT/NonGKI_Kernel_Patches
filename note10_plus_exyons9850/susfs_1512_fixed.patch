@@ -1,3 +1,20 @@
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 7d8cbc3..445749d 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -3646,12 +3646,7 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+ 	if (user_ns != ns->user_ns)
+ 		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
+ #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+-	// Always let clone_mnt() in copy_tree() know it is from copy_mnt_ns()
+ 	copy_flags |= CL_COPY_MNT_NS;
+-	if (is_zygote_pid) {
+-		// Let clone_mnt() in copy_tree() know copy_mnt_ns() is run by zygote process
+-		copy_flags |= CL_ZYGOTE_COPY_MNT_NS;
+-	}
+ #endif
+ #ifdef CONFIG_KDP_NS
+ 	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
 diff --git a/fs/proc/base.c b/fs/proc/base.c
 index 3adc82a..71e1065 100644
 --- a/fs/proc/base.c
@@ -13,7 +30,7 @@ index 3adc82a..71e1065 100644
  #include <asm/hardwall.h>
  #endif
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 1c18204..796c99a 100644
+index 90adef1..35a6ec0 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -21,7 +21,7 @@
