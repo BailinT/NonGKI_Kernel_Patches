@@ -1,7 +1,0 @@
---- a/drivers/android/Makefile	2025-06-23 18:54:56.628717134 +0800
-+++ b/drivers/android/Makefile	2025-06-23 18:55:11.696862249 +0800
-@@ -6,3 +6,4 @@
- obj-$(CONFIG_ANDROID_BINDER_IPC_SELFTEST) += binder_alloc_selftest.o
- obj-$(CONFIG_ANDROID_DEBUG_SYMBOLS)	+= android_debug_symbols.o
- obj-$(CONFIG_ANDROID_VENDOR_HOOKS) += vendor_hooks.o
-+obj-$(CONFIG_ANDROID_SIMPLE_LMK)	+= simple_lmk.o
