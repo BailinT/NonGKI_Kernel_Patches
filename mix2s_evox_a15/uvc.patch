@@ -1,6 +1,6 @@
-diff --git a/mix2s_sched_bak/drivers/media/usb/uvc/uvc_ctrl.c b/mix2s_sched/drivers/media/usb/uvc/uvc_ctrl.c
+diff --git a/drivers/media/usb/uvc/uvc_ctrl.c b/mix2s_sched/drivers/media/usb/uvc/uvc_ctrl.c
 index 21102ea..0cc1e46 100644
---- a/mix2s_sched_bak/drivers/media/usb/uvc/uvc_ctrl.c
+--- a/drivers/media/usb/uvc/uvc_ctrl.c
 +++ b/mix2s_sched/drivers/media/usb/uvc/uvc_ctrl.c
 @@ -22,6 +22,7 @@
  #include <linux/wait.h>
@@ -10,9 +10,9 @@ index 21102ea..0cc1e46 100644
  
  #include "uvcvideo.h"
  
-diff --git a/mix2s_sched_bak/drivers/media/usb/uvc/uvc_driver.c b/mix2s_sched/drivers/media/usb/uvc/uvc_driver.c
+diff --git a/drivers/media/usb/uvc/uvc_driver.c b/mix2s_sched/drivers/media/usb/uvc/uvc_driver.c
 index ed3b664..fc96048 100644
---- a/mix2s_sched_bak/drivers/media/usb/uvc/uvc_driver.c
+--- a/drivers/media/usb/uvc/uvc_driver.c
 +++ b/mix2s_sched/drivers/media/usb/uvc/uvc_driver.c
 @@ -24,6 +24,7 @@
  #include <asm/unaligned.h>
@@ -268,9 +268,9 @@ index ed3b664..fc96048 100644
  /* ------------------------------------------------------------------------
   * Terminal and unit management
   */
-diff --git a/mix2s_sched_bak/drivers/media/usb/uvc/uvc_v4l2.c b/mix2s_sched/drivers/media/usb/uvc/uvc_v4l2.c
+diff --git a/drivers/media/usb/uvc/uvc_v4l2.c b/mix2s_sched/drivers/media/usb/uvc/uvc_v4l2.c
 index 53d81ef..baf979d 100644
---- a/mix2s_sched_bak/drivers/media/usb/uvc/uvc_v4l2.c
+--- a/drivers/media/usb/uvc/uvc_v4l2.c
 +++ b/mix2s_sched/drivers/media/usb/uvc/uvc_v4l2.c
 @@ -381,7 +381,7 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
  	mutex_unlock(&stream->mutex);
@@ -323,9 +323,9 @@ index 53d81ef..baf979d 100644
  			&fival->stepwise.step.denominator, 8, 333);
  	}
  
-diff --git a/mix2s_sched_bak/drivers/media/usb/uvc/uvcvideo.h b/mix2s_sched/drivers/media/usb/uvc/uvcvideo.h
+diff --git a/drivers/media/usb/uvc/uvcvideo.h b/mix2s_sched/drivers/media/usb/uvc/uvcvideo.h
 index 7e4d3ee..455ea39 100644
---- a/mix2s_sched_bak/drivers/media/usb/uvc/uvcvideo.h
+--- a/drivers/media/usb/uvc/uvcvideo.h
 +++ b/mix2s_sched/drivers/media/usb/uvc/uvcvideo.h
 @@ -36,102 +36,6 @@
  	((entity)->type & 0x8000) == UVC_TERM_OUTPUT)
@@ -454,9 +454,9 @@ index 7e4d3ee..455ea39 100644
  extern struct usb_host_endpoint *uvc_find_endpoint(
  		struct usb_host_interface *alts, __u8 epaddr);
  
-diff --git a/mix2s_sched_bak/drivers/media/v4l2-core/v4l2-common.c b/mix2s_sched/drivers/media/v4l2-core/v4l2-common.c
+diff --git a/drivers/media/v4l2-core/v4l2-common.c b/mix2s_sched/drivers/media/v4l2-core/v4l2-common.c
 index 57cfe26..ca699d9 100644
---- a/mix2s_sched_bak/drivers/media/v4l2-core/v4l2-common.c
+--- a/drivers/media/v4l2-core/v4l2-common.c
 +++ b/mix2s_sched/drivers/media/v4l2-core/v4l2-common.c
 @@ -405,3 +405,85 @@ void v4l2_get_timestamp(struct timeval *tv)
  	tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
@@ -544,9 +544,9 @@ index 57cfe26..ca699d9 100644
 +	return denominator ? numerator * multiplier / denominator : 0;
 +}
 +EXPORT_SYMBOL_GPL(v4l2_fraction_to_interval);
-diff --git a/mix2s_sched_bak/drivers/usb/gadget/Kconfig b/mix2s_sched/drivers/usb/gadget/Kconfig
+diff --git a/drivers/usb/gadget/Kconfig b/mix2s_sched/drivers/usb/gadget/Kconfig
 index dd34f47..4cefefd 100644
---- a/mix2s_sched_bak/drivers/usb/gadget/Kconfig
+--- a/drivers/usb/gadget/Kconfig
 +++ b/mix2s_sched/drivers/usb/gadget/Kconfig
 @@ -518,6 +518,7 @@ config USB_CONFIGFS_F_UVC
  	depends on USB_CONFIGFS
@@ -556,9 +556,9 @@ index dd34f47..4cefefd 100644
  	select VIDEOBUF2_VMALLOC
  	select USB_F_UVC
  	help
-diff --git a/mix2s_sched_bak/drivers/usb/gadget/function/Makefile b/mix2s_sched/drivers/usb/gadget/function/Makefile
+diff --git a/drivers/usb/gadget/function/Makefile b/mix2s_sched/drivers/usb/gadget/function/Makefile
 index f814472..99d28fb 100644
---- a/mix2s_sched_bak/drivers/usb/gadget/function/Makefile
+--- a/drivers/usb/gadget/function/Makefile
 +++ b/mix2s_sched/drivers/usb/gadget/function/Makefile
 @@ -37,8 +37,9 @@ usb_f_uac1-y			:= f_uac1.o u_uac1.o
  obj-$(CONFIG_USB_F_UAC1)	+= usb_f_uac1.o
@@ -6577,9 +6577,9 @@ index 0000000..8ef6259
 +int uvcg_video_init(struct uvc_video *video, struct uvc_device *uvc);
 +
 +#endif /* __UVC_VIDEO_H__ */
-diff --git a/mix2s_sched_bak/include/media/v4l2-common.h b/mix2s_sched/include/media/v4l2-common.h
+diff --git a/include/media/v4l2-common.h b/mix2s_sched/include/media/v4l2-common.h
 index 350cbf9..efaae38 100644
---- a/mix2s_sched_bak/include/media/v4l2-common.h
+--- a/include/media/v4l2-common.h
 +++ b/mix2s_sched/include/media/v4l2-common.h
 @@ -257,4 +257,8 @@ const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
  
