@@ -1,7 +1,7 @@
-diff --git a/drivers/media/usb/uvc/uvc_ctrl.c b/mix2s_sched/drivers/media/usb/uvc/uvc_ctrl.c
+diff --git a/drivers/media/usb/uvc/uvc_ctrl.c b/drivers/media/usb/uvc/uvc_ctrl.c
 index 21102ea..0cc1e46 100644
 --- a/drivers/media/usb/uvc/uvc_ctrl.c
-+++ b/mix2s_sched/drivers/media/usb/uvc/uvc_ctrl.c
++++ b/drivers/media/usb/uvc/uvc_ctrl.c
 @@ -22,6 +22,7 @@
  #include <linux/wait.h>
  #include <linux/atomic.h>
@@ -10,10 +10,10 @@ index 21102ea..0cc1e46 100644
  
  #include "uvcvideo.h"
  
-diff --git a/drivers/media/usb/uvc/uvc_driver.c b/mix2s_sched/drivers/media/usb/uvc/uvc_driver.c
+diff --git a/drivers/media/usb/uvc/uvc_driver.c b/drivers/media/usb/uvc/uvc_driver.c
 index ed3b664..fc96048 100644
 --- a/drivers/media/usb/uvc/uvc_driver.c
-+++ b/mix2s_sched/drivers/media/usb/uvc/uvc_driver.c
++++ b/drivers/media/usb/uvc/uvc_driver.c
 @@ -24,6 +24,7 @@
  #include <asm/unaligned.h>
  
@@ -268,10 +268,10 @@ index ed3b664..fc96048 100644
  /* ------------------------------------------------------------------------
   * Terminal and unit management
   */
-diff --git a/drivers/media/usb/uvc/uvc_v4l2.c b/mix2s_sched/drivers/media/usb/uvc/uvc_v4l2.c
+diff --git a/drivers/media/usb/uvc/uvc_v4l2.c b/drivers/media/usb/uvc/uvc_v4l2.c
 index 53d81ef..baf979d 100644
 --- a/drivers/media/usb/uvc/uvc_v4l2.c
-+++ b/mix2s_sched/drivers/media/usb/uvc/uvc_v4l2.c
++++ b/drivers/media/usb/uvc/uvc_v4l2.c
 @@ -381,7 +381,7 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
  	mutex_unlock(&stream->mutex);
  
@@ -323,10 +323,10 @@ index 53d81ef..baf979d 100644
  			&fival->stepwise.step.denominator, 8, 333);
  	}
  
-diff --git a/drivers/media/usb/uvc/uvcvideo.h b/mix2s_sched/drivers/media/usb/uvc/uvcvideo.h
+diff --git a/drivers/media/usb/uvc/uvcvideo.h b/drivers/media/usb/uvc/uvcvideo.h
 index 7e4d3ee..455ea39 100644
 --- a/drivers/media/usb/uvc/uvcvideo.h
-+++ b/mix2s_sched/drivers/media/usb/uvc/uvcvideo.h
++++ b/drivers/media/usb/uvc/uvcvideo.h
 @@ -36,102 +36,6 @@
  	((entity)->type & 0x8000) == UVC_TERM_OUTPUT)
  
@@ -454,10 +454,10 @@ index 7e4d3ee..455ea39 100644
  extern struct usb_host_endpoint *uvc_find_endpoint(
  		struct usb_host_interface *alts, __u8 epaddr);
  
-diff --git a/drivers/media/v4l2-core/v4l2-common.c b/mix2s_sched/drivers/media/v4l2-core/v4l2-common.c
+diff --git a/drivers/media/v4l2-core/v4l2-common.c b/drivers/media/v4l2-core/v4l2-common.c
 index 57cfe26..ca699d9 100644
 --- a/drivers/media/v4l2-core/v4l2-common.c
-+++ b/mix2s_sched/drivers/media/v4l2-core/v4l2-common.c
++++ b/drivers/media/v4l2-core/v4l2-common.c
 @@ -405,3 +405,85 @@ void v4l2_get_timestamp(struct timeval *tv)
  	tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
  }
@@ -544,10 +544,10 @@ index 57cfe26..ca699d9 100644
 +	return denominator ? numerator * multiplier / denominator : 0;
 +}
 +EXPORT_SYMBOL_GPL(v4l2_fraction_to_interval);
-diff --git a/drivers/usb/gadget/Kconfig b/mix2s_sched/drivers/usb/gadget/Kconfig
+diff --git a/drivers/usb/gadget/Kconfig b/drivers/usb/gadget/Kconfig
 index dd34f47..4cefefd 100644
 --- a/drivers/usb/gadget/Kconfig
-+++ b/mix2s_sched/drivers/usb/gadget/Kconfig
++++ b/drivers/usb/gadget/Kconfig
 @@ -518,6 +518,7 @@ config USB_CONFIGFS_F_UVC
  	depends on USB_CONFIGFS
  	depends on VIDEO_V4L2
@@ -556,10 +556,10 @@ index dd34f47..4cefefd 100644
  	select VIDEOBUF2_VMALLOC
  	select USB_F_UVC
  	help
-diff --git a/drivers/usb/gadget/function/Makefile b/mix2s_sched/drivers/usb/gadget/function/Makefile
+diff --git a/drivers/usb/gadget/function/Makefile b/drivers/usb/gadget/function/Makefile
 index f814472..99d28fb 100644
 --- a/drivers/usb/gadget/function/Makefile
-+++ b/mix2s_sched/drivers/usb/gadget/function/Makefile
++++ b/drivers/usb/gadget/function/Makefile
 @@ -37,8 +37,9 @@ usb_f_uac1-y			:= f_uac1.o u_uac1.o
  obj-$(CONFIG_USB_F_UAC1)	+= usb_f_uac1.o
  usb_f_uac2-y			:= f_uac2.o
@@ -572,19 +572,19 @@ index f814472..99d28fb 100644
  usb_f_midi-y			:= f_midi.o
  obj-$(CONFIG_USB_F_MIDI)	+= usb_f_midi.o
  usb_f_hid-y			:= f_hid.o
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/Makefile b/mix2s_sched/drivers/usb/gadget/function/uvc-new/Makefile
+diff --git a/drivers/usb/gadget/function/uvc-new/Makefile b/drivers/usb/gadget/function/uvc-new/Makefile
 new file mode 100644
 index 0000000..f5608fa
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/Makefile
++++ b/drivers/usb/gadget/function/uvc-new/Makefile
 @@ -0,0 +1,2 @@
 +usb_f_uvc-y			:= f_uvc.o uvc_queue.o uvc_v4l2.o uvc_video.o uvc_configfs.o
 +obj-$(CONFIG_USB_F_UVC)		+= usb_f_uvc.o
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/f_uvc.c b/mix2s_sched/drivers/usb/gadget/function/uvc-new/f_uvc.c
+diff --git a/drivers/usb/gadget/function/uvc-new/f_uvc.c b/drivers/usb/gadget/function/uvc-new/f_uvc.c
 new file mode 100644
 index 0000000..1081410
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/f_uvc.c
++++ b/drivers/usb/gadget/function/uvc-new/f_uvc.c
 @@ -0,0 +1,1037 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
@@ -1623,11 +1623,11 @@ index 0000000..1081410
 +DECLARE_USB_FUNCTION_INIT(uvc, uvc_alloc_inst, uvc_alloc);
 +MODULE_LICENSE("GPL");
 +MODULE_AUTHOR("Laurent Pinchart");
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/f_uvc.h b/mix2s_sched/drivers/usb/gadget/function/uvc-new/f_uvc.h
+diff --git a/drivers/usb/gadget/function/uvc-new/f_uvc.h b/drivers/usb/gadget/function/uvc-new/f_uvc.h
 new file mode 100644
 index 0000000..083aef0
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/f_uvc.h
++++ b/drivers/usb/gadget/function/uvc-new/f_uvc.h
 @@ -0,0 +1,20 @@
 +/* SPDX-License-Identifier: GPL-2.0+ */
 +/*
@@ -1649,11 +1649,11 @@ index 0000000..083aef0
 +void uvc_function_disconnect(struct uvc_device *uvc);
 +
 +#endif /* _F_UVC_H_ */
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/u_uvc.h b/mix2s_sched/drivers/usb/gadget/function/uvc-new/u_uvc.h
+diff --git a/drivers/usb/gadget/function/uvc-new/u_uvc.h b/drivers/usb/gadget/function/uvc-new/u_uvc.h
 new file mode 100644
 index 0000000..24b8681
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/u_uvc.h
++++ b/drivers/usb/gadget/function/uvc-new/u_uvc.h
 @@ -0,0 +1,87 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -1742,11 +1742,11 @@ index 0000000..24b8681
 +};
 +
 +#endif /* U_UVC_H */
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc.h b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc.h
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc.h b/drivers/usb/gadget/function/uvc-new/uvc.h
 new file mode 100644
 index 0000000..0f7fe08
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc.h
++++ b/drivers/usb/gadget/function/uvc-new/uvc.h
 @@ -0,0 +1,192 @@
 +/* SPDX-License-Identifier: GPL-2.0+ */
 +/*
@@ -1940,11 +1940,11 @@ index 0000000..0f7fe08
 +extern void uvc_function_disconnect(struct uvc_device *uvc);
 +
 +#endif /* _UVC_GADGET_H_ */
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_configfs.c b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_configfs.c
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_configfs.c b/drivers/usb/gadget/function/uvc-new/uvc_configfs.c
 new file mode 100644
 index 0000000..252e1ea
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_configfs.c
++++ b/drivers/usb/gadget/function/uvc-new/uvc_configfs.c
 @@ -0,0 +1,2498 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -4444,11 +4444,11 @@ index 0000000..252e1ea
 +
 +	return ret;
 +}
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_configfs.h b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_configfs.h
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_configfs.h b/drivers/usb/gadget/function/uvc-new/uvc_configfs.h
 new file mode 100644
 index 0000000..ad2ec8c
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_configfs.h
++++ b/drivers/usb/gadget/function/uvc-new/uvc_configfs.h
 @@ -0,0 +1,137 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -4587,11 +4587,11 @@ index 0000000..ad2ec8c
 +int uvcg_attach_configfs(struct f_uvc_opts *opts);
 +
 +#endif /* UVC_CONFIGFS_H */
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_queue.c b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_queue.c
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_queue.c b/drivers/usb/gadget/function/uvc-new/uvc_queue.c
 new file mode 100644
 index 0000000..011cd06
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_queue.c
++++ b/drivers/usb/gadget/function/uvc-new/uvc_queue.c
 @@ -0,0 +1,359 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
@@ -4952,11 +4952,11 @@ index 0000000..011cd06
 +	return buf;
 +}
 +
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_queue.h b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_queue.h
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_queue.h b/drivers/usb/gadget/function/uvc-new/uvc_queue.h
 new file mode 100644
 index 0000000..82c1469
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_queue.h
++++ b/drivers/usb/gadget/function/uvc-new/uvc_queue.h
 @@ -0,0 +1,101 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _UVC_QUEUE_H_
@@ -5059,11 +5059,11 @@ index 0000000..82c1469
 +
 +#endif /* _UVC_QUEUE_H_ */
 +
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_v4l2.c b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_v4l2.c
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_v4l2.c b/drivers/usb/gadget/function/uvc-new/uvc_v4l2.c
 new file mode 100644
 index 0000000..1b62307
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_v4l2.c
++++ b/drivers/usb/gadget/function/uvc-new/uvc_v4l2.c
 @@ -0,0 +1,662 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
@@ -5727,11 +5727,11 @@ index 0000000..1b62307
 +	.get_unmapped_area = uvcg_v4l2_get_unmapped_area,
 +#endif
 +};
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_v4l2.h b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_v4l2.h
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_v4l2.h b/drivers/usb/gadget/function/uvc-new/uvc_v4l2.h
 new file mode 100644
 index 0000000..1576005
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_v4l2.h
++++ b/drivers/usb/gadget/function/uvc-new/uvc_v4l2.h
 @@ -0,0 +1,19 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -5752,11 +5752,11 @@ index 0000000..1576005
 +extern const struct v4l2_file_operations uvc_v4l2_fops;
 +
 +#endif /* __UVC_V4L2_H__ */
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_video.c b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_video.c
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_video.c b/drivers/usb/gadget/function/uvc-new/uvc_video.c
 new file mode 100644
 index 0000000..dd3241f
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_video.c
++++ b/drivers/usb/gadget/function/uvc-new/uvc_video.c
 @@ -0,0 +1,791 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
@@ -6549,11 +6549,11 @@ index 0000000..dd3241f
 +			V4L2_BUF_TYPE_VIDEO_OUTPUT, &video->mutex);
 +	return 0;
 +}
-diff --git a/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_video.h b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_video.h
+diff --git a/drivers/usb/gadget/function/uvc-new/uvc_video.h b/drivers/usb/gadget/function/uvc-new/uvc_video.h
 new file mode 100644
 index 0000000..8ef6259
 --- /dev/null
-+++ b/mix2s_sched/drivers/usb/gadget/function/uvc-new/uvc_video.h
++++ b/drivers/usb/gadget/function/uvc-new/uvc_video.h
 @@ -0,0 +1,22 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -6577,10 +6577,10 @@ index 0000000..8ef6259
 +int uvcg_video_init(struct uvc_video *video, struct uvc_device *uvc);
 +
 +#endif /* __UVC_VIDEO_H__ */
-diff --git a/include/media/v4l2-common.h b/mix2s_sched/include/media/v4l2-common.h
+diff --git a/include/media/v4l2-common.h b/include/media/v4l2-common.h
 index 350cbf9..efaae38 100644
 --- a/include/media/v4l2-common.h
-+++ b/mix2s_sched/include/media/v4l2-common.h
++++ b/include/media/v4l2-common.h
 @@ -257,4 +257,8 @@ const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
  
  void v4l2_get_timestamp(struct timeval *tv);
@@ -6590,11 +6590,11 @@ index 350cbf9..efaae38 100644
 +u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator);
 +
  #endif /* V4L2_COMMON_H_ */
-diff --git a/mix2s_sched/include/media/v4l2-uvc.h b/mix2s_sched/include/media/v4l2-uvc.h
+diff --git a/include/media/v4l2-uvc.h b/include/media/v4l2-uvc.h
 new file mode 100644
 index 0000000..4402445
 --- /dev/null
-+++ b/mix2s_sched/include/media/v4l2-uvc.h
++++ b/include/media/v4l2-uvc.h
 @@ -0,0 +1,262 @@
 +/* SPDX-License-Identifier: GPL-2.0-or-later */
 +/*
@@ -6858,11 +6858,11 @@ index 0000000..4402445
 +}
 +
 +#endif /* __LINUX_V4L2_UVC_H */
-diff --git a/mix2s_sched/include/uapi/linux/usb/g_uvc-new.h b/mix2s_sched/include/uapi/linux/usb/g_uvc-new.h
+diff --git a/include/uapi/linux/usb/g_uvc-new.h b/include/uapi/linux/usb/g_uvc-new.h
 new file mode 100644
 index 0000000..8d7824d
 --- /dev/null
-+++ b/mix2s_sched/include/uapi/linux/usb/g_uvc-new.h
++++ b/include/uapi/linux/usb/g_uvc-new.h
 @@ -0,0 +1,42 @@
 +/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 +/*
