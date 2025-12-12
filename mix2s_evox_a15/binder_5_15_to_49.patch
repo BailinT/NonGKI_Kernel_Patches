@@ -5599,7 +5599,7 @@ index 0000000..f80d1fb
 +#include <linux/module.h>
 +#include <linux/mutex.h>
 +#include <linux/mount.h>
-+#include <linux/fs_parser.h>
++#include <linux/parser.h>
 +#include <linux/radix-tree.h>
 +#include <linux/sched.h>
 +#include <linux/seq_file.h>
