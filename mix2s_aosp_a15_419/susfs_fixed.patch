@@ -1,0 +1,82 @@
+diff --git a/mix2s_bak/fs/namespace.c b/mix2s/fs/namespace.c
+index 8211e46..66f34a1 100644
+--- a/mix2s_bak/fs/namespace.c
++++ b/mix2s/fs/namespace.c
+@@ -27,10 +27,23 @@
+ #include <linux/task_work.h>
+ #include <linux/sched/task.h>
+ #include <linux/fs_context.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ 
+ #include "pnode.h"
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern bool susfs_is_boot_completed_triggered;
++
++static DEFINE_IDA(susfs_ksu_mnt_group_ida);
++static atomic64_t susfs_ksu_mounts = ATOMIC64_INIT(0);
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
+ /* Maximum number of mounts in a mount namespace */
+ unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
+@@ -1195,7 +1208,33 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
+ 	struct mount *mnt;
+ 	int err;
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	// We won't check it anymore if boot-completed stage is triggered.
++	if (susfs_is_boot_completed_triggered) {
++		goto skip_checking_for_ksu_proc;
++	}
++	// First we must check for ksu process because of magic mount
++	if (susfs_is_current_ksu_domain()) {
++		// if it is unsharing, we reuse the old->mnt_id
++		if (flag & CL_COPY_MNT_NS) {
++			mnt = susfs_reuse_sus_vfsmnt(old->mnt_devname, old->mnt_id);
++			goto bypass_orig_flow;
++		}
++		// else we just go assign fake mnt_id
++		mnt = susfs_alloc_sus_vfsmnt(old->mnt_devname);
++		goto bypass_orig_flow;
++	}
++skip_checking_for_ksu_proc:
++	// Lastly for other processes of which old->mnt_id == DEFAULT_KSU_MNT_ID, go assign fake mnt_id
++	if (old->mnt_id == DEFAULT_KSU_MNT_ID) {
++		mnt = susfs_alloc_sus_vfsmnt(old->mnt_devname);
++		goto bypass_orig_flow;
++	}
++#endif
+ 	mnt = alloc_vfsmnt(old->mnt_devname);
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++bypass_orig_flow:
++#endif
+ 	if (!mnt)
+ 		return ERR_PTR(-ENOMEM);
+ 
+diff --git a/mix2s_bak/fs/proc/task_mmu.c b/mix2s/fs/proc/task_mmu.c
+index 2118b5b..1012850 100644
+--- a/mix2s_bak/fs/proc/task_mmu.c
++++ b/mix2s/fs/proc/task_mmu.c
+@@ -1701,6 +1701,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 			goto out_free;
+ 		ret = walk_page_range(start_vaddr, end, &pagemap_walk);
+ 		mmap_read_unlock(mm);
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		vma = find_vma(mm, start_vaddr);
++		if (vma && vma->vm_file) {
++			struct inode *inode = file_inode(vma->vm_file);
++			if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
++				pm.buffer->pme = 0;
++			}
++		}
++#endif
+ 		start_vaddr = end;
+ 
+ 		len = min(count, PM_ENTRY_BYTES * pm.pos);

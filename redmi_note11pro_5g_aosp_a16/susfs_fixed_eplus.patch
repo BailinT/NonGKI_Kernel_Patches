@@ -1,0 +1,14 @@
+diff --git a/eplus_bak/fs/proc/task_mmu.c b/eplus/fs/proc/task_mmu.c
+index 6bc24ef..f435e3c 100644
+--- a/eplus_bak/fs/proc/task_mmu.c
++++ b/eplus/fs/proc/task_mmu.c
+@@ -20,6 +20,9 @@
+ #include <linux/shmem_fs.h>
+ #include <linux/uaccess.h>
+ #include <linux/pkeys.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP)
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
