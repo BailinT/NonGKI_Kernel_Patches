@@ -1,7 +1,7 @@
-diff --git a/samsung_bak/fs/namespace.c b/samsung/fs/namespace.c
+diff --git a/fs/namespace.c b/fs/namespace.c
 index e271236..cf5ec32 100644
---- a/samsung_bak/fs/namespace.c
-+++ b/samsung/fs/namespace.c
+--- a/fs/namespace.c
++++ b/fs/namespace.c
 @@ -27,6 +27,9 @@
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
@@ -40,10 +40,10 @@ index e271236..cf5ec32 100644
  #ifdef CONFIG_KDP_NS
  	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
  #else
-diff --git a/samsung_bak/fs/proc/base.c b/samsung/fs/proc/base.c
+diff --git a/fs/proc/base.c b/fs/proc/base.c
 index 3adc82a..71e1065 100644
---- a/samsung_bak/fs/proc/base.c
-+++ b/samsung/fs/proc/base.c
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
 @@ -96,6 +96,9 @@
  #include <linux/cpufreq_times.h>
  #include <linux/task_integrity.h>
@@ -54,10 +54,10 @@ index 3adc82a..71e1065 100644
  #ifdef CONFIG_HARDWALL
  #include <asm/hardwall.h>
  #endif
-diff --git a/samsung_bak/fs/proc/task_mmu.c b/samsung/fs/proc/task_mmu.c
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
 index 5b25809..35a6ec0 100644
---- a/samsung_bak/fs/proc/task_mmu.c
-+++ b/samsung/fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
 @@ -21,6 +21,9 @@
  #include <linux/mm_inline.h>
  #include <linux/ctype.h>
@@ -68,10 +68,10 @@ index 5b25809..35a6ec0 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-diff --git a/samsung_bak/kernel/sys.c b/samsung/kernel/sys.c
+diff --git a/kernel/sys.c b/kernel/sys.c
 index a6246ab..c39b343 100644
---- a/samsung_bak/kernel/sys.c
-+++ b/samsung/kernel/sys.c
+--- a/kernel/sys.c
++++ b/kernel/sys.c
 @@ -1196,12 +1196,18 @@ static int override_release(char __user *release, size_t len)
  	return ret;
  }
