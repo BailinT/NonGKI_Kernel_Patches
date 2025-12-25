@@ -1,0 +1,93 @@
+diff --git a/samsung_bak/fs/namespace.c b/samsung/fs/namespace.c
+index e271236..cf5ec32 100644
+--- a/samsung_bak/fs/namespace.c
++++ b/samsung/fs/namespace.c
+@@ -27,6 +27,9 @@
+ #include <linux/task_work.h>
+ #include <linux/sched/task.h>
+ #include <linux/fslog.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ 
+ #ifdef CONFIG_KDP_NS
+ #include <linux/kdp.h>
+@@ -35,6 +38,17 @@
+ #include "pnode.h"
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern bool susfs_is_boot_completed_triggered;
++
++static DEFINE_IDA(susfs_ksu_mnt_group_ida);
++static atomic64_t susfs_ksu_mounts = ATOMIC64_INIT(0);
++static int susfs_mnt_group_start = DEFAULT_KSU_MNT_GROUP_ID;
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
+ /* Maximum number of mounts in a mount namespace */
+ unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
+@@ -3593,6 +3607,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+ 	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
+ 	if (user_ns != ns->user_ns)
+ 		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	copy_flags |= CL_COPY_MNT_NS;
++#endif
+ #ifdef CONFIG_KDP_NS
+ 	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
+ #else
+diff --git a/samsung_bak/fs/proc/base.c b/samsung/fs/proc/base.c
+index 3adc82a..71e1065 100644
+--- a/samsung_bak/fs/proc/base.c
++++ b/samsung/fs/proc/base.c
+@@ -96,6 +96,9 @@
+ #include <linux/cpufreq_times.h>
+ #include <linux/task_integrity.h>
+ #include <linux/proca.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++#include <linux/susfs_def.h>
++#endif
+ #ifdef CONFIG_HARDWALL
+ #include <asm/hardwall.h>
+ #endif
+diff --git a/samsung_bak/fs/proc/task_mmu.c b/samsung/fs/proc/task_mmu.c
+index 5b25809..35a6ec0 100644
+--- a/samsung_bak/fs/proc/task_mmu.c
++++ b/samsung/fs/proc/task_mmu.c
+@@ -21,6 +21,9 @@
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
+ #include <linux/freezer.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP)
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
+diff --git a/samsung_bak/kernel/sys.c b/samsung/kernel/sys.c
+index a6246ab..c39b343 100644
+--- a/samsung_bak/kernel/sys.c
++++ b/samsung/kernel/sys.c
+@@ -1196,12 +1196,18 @@ static int override_release(char __user *release, size_t len)
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++extern void susfs_spoof_uname(struct new_utsname* tmp);
++#endif
+ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+ {
+ 	struct new_utsname tmp;
+ 
+ 	down_read(&uts_sem);
+ 	memcpy(&tmp, utsname(), sizeof(tmp));
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++	susfs_spoof_uname(&tmp);
++#endif
+ 	if (!strncmp(current->comm, "bpfloader", 9) ||
+ 	    !strncmp(current->comm, "netbpfload", 10) ||
+ 	    !strncmp(current->comm, "netd", 4)) {
