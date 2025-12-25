@@ -1,7 +1,7 @@
-diff --git a/mix2s_bak/fs/namespace.c b/mix2s/fs/namespace.c
+diff --git a/fs/namespace.c b/fs/namespace.c
 index 8211e46..66f34a1 100644
---- a/mix2s_bak/fs/namespace.c
-+++ b/mix2s/fs/namespace.c
+--- a/fs/namespace.c
++++ b/fs/namespace.c
 @@ -27,10 +27,23 @@
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
@@ -60,10 +60,10 @@ index 8211e46..66f34a1 100644
  	if (!mnt)
  		return ERR_PTR(-ENOMEM);
  
-diff --git a/mix2s_bak/fs/proc/task_mmu.c b/mix2s/fs/proc/task_mmu.c
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
 index 2118b5b..1012850 100644
---- a/mix2s_bak/fs/proc/task_mmu.c
-+++ b/mix2s/fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
 @@ -1701,6 +1701,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
  			goto out_free;
  		ret = walk_page_range(start_vaddr, end, &pagemap_walk);

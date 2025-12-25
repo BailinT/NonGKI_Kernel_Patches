@@ -1,7 +1,7 @@
-diff --git a/k20p_bak/fs/proc/cmdline.c b/k20p/fs/proc/cmdline.c
+diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
 index 4a24f49..b715599 100644
---- a/k20p_bak/fs/proc/cmdline.c
-+++ b/k20p/fs/proc/cmdline.c
+--- a/fs/proc/cmdline.c
++++ b/fs/proc/cmdline.c
 @@ -27,8 +27,18 @@ static void proc_command_line_init(void) {
  }
  #endif
@@ -21,10 +21,10 @@ index 4a24f49..b715599 100644
  #ifdef CONFIG_INITRAMFS_IGNORE_SKIP_FLAG
  	seq_printf(m, "%s\n", proc_command_line);
  #else
-diff --git a/k20p_bak/fs/proc/task_mmu.c b/k20p/fs/proc/task_mmu.c
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
 index 9f2db87..d83f21e 100644
---- a/k20p_bak/fs/proc/task_mmu.c
-+++ b/k20p/fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
 @@ -21,6 +21,9 @@
  #include <linux/mm_inline.h>
  #include <linux/ctype.h>
@@ -35,10 +35,10 @@ index 9f2db87..d83f21e 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-diff --git a/k20p_bak/kernel/sys.c b/k20p/kernel/sys.c
+diff --git a/kernel/sys.c b/kernel/sys.c
 index 46abe65..1b15239 100644
---- a/k20p_bak/kernel/sys.c
-+++ b/k20p/kernel/sys.c
+--- a/kernel/sys.c
++++ b/kernel/sys.c
 @@ -1212,6 +1212,9 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
  
  	down_read(&uts_sem);

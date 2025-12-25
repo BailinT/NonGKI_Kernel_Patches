@@ -1,7 +1,7 @@
-diff --git a/xiaomi11_bak/kernel/sys.c b/xiaomi11/kernel/sys.c
+diff --git a/kernel/sys.c b/kernel/sys.c
 index eb21538..0e662c2 100644
---- a/xiaomi11_bak/kernel/sys.c
-+++ b/xiaomi11/kernel/sys.c
+--- a/kernel/sys.c
++++ b/kernel/sys.c
 @@ -1240,6 +1240,9 @@ static int override_release(char __user *release, size_t len)
  	return ret;
  }

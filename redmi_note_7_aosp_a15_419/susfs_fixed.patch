@@ -1,7 +1,7 @@
-diff --git a/note7_bak/fs/proc/cmdline.c b/note7/fs/proc/cmdline.c
+diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
 index bf4aafa..5006739 100644
---- a/note7_bak/fs/proc/cmdline.c
-+++ b/note7/fs/proc/cmdline.c
+--- a/fs/proc/cmdline.c
++++ b/fs/proc/cmdline.c
 @@ -27,8 +27,18 @@ static void proc_command_line_init(void) {
  }
  #endif
