@@ -80,3 +80,19 @@ index 2118b5b..1012850 100644
  		start_vaddr = end;
  
  		len = min(count, PM_ENTRY_BYTES * pm.pos);
+diff --git a/include/linux/mount.h b/include/linux/mount.h
+index 538b74b..b724b7d 100644
+--- a/include/linux/mount.h
++++ b/include/linux/mount.h
+@@ -74,7 +74,11 @@ struct vfsmount {
+ 	ANDROID_KABI_RESERVE(1);
+ 	ANDROID_KABI_RESERVE(2);
+ 	ANDROID_KABI_RESERVE(3);
++#ifdef CONFIG_KSU_SUSFS
++	ANDROID_KABI_USE(4, u64 susfs_mnt_id_backup);
++#else
+ 	ANDROID_KABI_RESERVE(4);
++#endif
+ } __randomize_layout;
+ 
+ struct file; /* forward dec */
