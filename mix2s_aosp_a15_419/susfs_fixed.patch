@@ -1,8 +1,8 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 8fe7a9a..66637a8 100644
+index fd05626..ed6e919 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -27,10 +27,23 @@
+@@ -27,10 +27,22 @@
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
  #include <linux/fs_context.h>
@@ -17,7 +17,6 @@ index 8fe7a9a..66637a8 100644
 +extern bool susfs_is_current_ksu_domain(void);
 +extern bool susfs_is_sdcard_android_data_decrypted;
 +
-+static DEFINE_IDA(susfs_ksu_mnt_group_ida);
 +static atomic64_t susfs_ksu_mounts = ATOMIC64_INIT(0);
 +
 +#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
@@ -26,7 +25,7 @@ index 8fe7a9a..66637a8 100644
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -1195,7 +1208,33 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
+@@ -1180,7 +1192,33 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
  	struct mount *mnt;
  	int err;
  
