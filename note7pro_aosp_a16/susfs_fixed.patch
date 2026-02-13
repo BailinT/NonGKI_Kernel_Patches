@@ -1,0 +1,42 @@
+diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
+index 25f6b35..28cda5b 100644
+--- a/fs/proc/cmdline.c
++++ b/fs/proc/cmdline.c
+@@ -5,6 +5,10 @@
+ #include <linux/seq_file.h>
+ #include <asm/setup.h>
+ 
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
++#endif
++
+ static char proc_cmdline[COMMAND_LINE_SIZE];
+ #ifdef CONFIG_INITRAMFS_IGNORE_SKIP_FLAG
+ #include <asm/setup.h>
+@@ -32,6 +36,12 @@ static void proc_command_line_init(void) {
+ 
+ static int cmdline_proc_show(struct seq_file *m, void *v)
+ {
++#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
++	if (!susfs_spoof_cmdline_or_bootconfig(m)) {
++		seq_putc(m, '\n');
++		return 0;
++	}
++#endif
+ #ifdef CONFIG_INITRAMFS_IGNORE_SKIP_FLAG
+ 	seq_printf(m, "%s\n", proc_command_line);
+ #else
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index fe5f37f..e447590 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -21,6 +21,9 @@
+ #include <linux/mm_inline.h>
+ #include <linux/ctype.h>
+ #include <linux/mm_inline.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP)
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
