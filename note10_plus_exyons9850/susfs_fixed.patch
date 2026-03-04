@@ -1,5 +1,5 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index aa3756a..c3bf5e8 100644
+index 7a7f42a..e531897 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -27,6 +27,9 @@
@@ -12,24 +12,25 @@ index aa3756a..c3bf5e8 100644
  
  #ifdef CONFIG_KDP_NS
  #include <linux/kdp.h>
-@@ -35,6 +38,16 @@
+@@ -35,6 +38,17 @@
  #include "pnode.h"
  #include "internal.h"
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +extern bool susfs_is_current_ksu_domain(void);
-+extern bool susfs_is_current_zygote_domain(void);
 +extern bool susfs_is_sdcard_android_data_decrypted;
 +
-+static int susfs_mnt_group_start = DEFAULT_KSU_MNT_GROUP_ID;
-+
 +#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++
++static DEFINE_IDA(susfs_mnt_id_ida);
++static DEFINE_IDA(susfs_mnt_group_ida);
++
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -3578,6 +3591,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3604,6 +3618,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
