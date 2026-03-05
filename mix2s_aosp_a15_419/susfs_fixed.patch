@@ -20,7 +20,7 @@ index 1f9b317..663572c 100644
 +#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
 +
 +static DEFINE_IDA(susfs_mnt_id_ida);
-+static DEFINE_IDA(susfs_mnt_group_ida)
++static DEFINE_IDA(susfs_mnt_group_ida);
 +
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +
