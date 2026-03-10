@@ -1,8 +1,8 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 864af5a..0de44bb 100644
---- a/fs/namespace.c
-+++ b/fs/namespace.c
-@@ -26,10 +26,23 @@
+index 4f61098..309a95d 100644
+--- a/xtd_bak/fs/namespace.c
++++ b/xtd/fs/namespace.c
+@@ -26,10 +26,24 @@
  #include <linux/bootmem.h>
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
@@ -15,12 +15,13 @@ index 864af5a..0de44bb 100644
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +extern bool susfs_is_current_ksu_domain(void);
-+extern bool susfs_is_boot_completed_triggered;
-+
-+static DEFINE_IDA(susfs_ksu_mnt_group_ida);
-+static atomic64_t susfs_ksu_mounts = ATOMIC64_INIT(0);
++extern bool susfs_is_sdcard_android_data_decrypted;
 +
 +#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++
++static DEFINE_IDA(susfs_mnt_id_ida);
++static DEFINE_IDA(susfs_mnt_group_ida);
++
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +
  #ifdef CONFIG_OPLUS_SECURE_GUARD
