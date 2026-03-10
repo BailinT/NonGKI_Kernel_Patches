@@ -1,7 +1,7 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
 index 4f61098..309a95d 100644
---- a/xtd_bak/fs/namespace.c
-+++ b/xtd/fs/namespace.c
+--- a/fs/namespace.c
++++ b/fs/namespace.c
 @@ -26,10 +26,24 @@
  #include <linux/bootmem.h>
  #include <linux/task_work.h>
