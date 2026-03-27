@@ -1,5 +1,5 @@
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index bd7a84f..119a01a 100644
+index b6b7d4c..9771c98 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -387,12 +387,44 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
