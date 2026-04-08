@@ -1,96 +1,31 @@
-diff --git a/fs/namespace.c b/fs/namespace.c
-index 7a7f42a..e531897 100644
---- a/fs/namespace.c
-+++ b/fs/namespace.c
-@@ -27,6 +27,9 @@
- #include <linux/task_work.h>
- #include <linux/sched/task.h>
- #include <linux/fslog.h>
-+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+#include <linux/susfs_def.h>
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
- 
- #ifdef CONFIG_KDP_NS
- #include <linux/kdp.h>
-@@ -35,6 +38,17 @@
- #include "pnode.h"
- #include "internal.h"
- 
-+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+extern bool susfs_is_current_ksu_domain(void);
-+extern bool susfs_is_sdcard_android_data_decrypted;
-+
-+#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
-+
-+static DEFINE_IDA(susfs_mnt_id_ida);
-+static DEFINE_IDA(susfs_mnt_group_ida);
-+
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+
- /* Maximum number of mounts in a mount namespace */
- unsigned int sysctl_mount_max __read_mostly = 100000;
- 
-@@ -3604,6 +3618,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
- 	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
- 	if (user_ns != ns->user_ns)
- 		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
-+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	copy_flags |= CL_COPY_MNT_NS;
-+#endif
- #ifdef CONFIG_KDP_NS
- 	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
- #else
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 33ced88..47e1271 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -96,6 +96,9 @@
- #include <linux/cpufreq_times.h>
- #include <linux/task_integrity.h>
- #include <linux/proca.h>
-+#ifdef CONFIG_KSU_SUSFS_SUS_MAP
-+#include <linux/susfs_def.h>
-+#endif
- #ifdef CONFIG_HARDWALL
- #include <asm/hardwall.h>
- #endif
-diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
-index 38437f5..4f92782 100644
---- a/fs/proc/cmdline.c
-+++ b/fs/proc/cmdline.c
-@@ -12,8 +12,18 @@ enum {
- 
- static char new_command_line[COMMAND_LINE_SIZE];
- 
-+#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-+extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
-+#endif
-+
- static int cmdline_proc_show(struct seq_file *m, void *v)
- {
-+#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-+	if (!susfs_spoof_cmdline_or_bootconfig(m)) {
-+		seq_putc(m, '\n');
-+		return 0;
-+	}
-+#endif
- 	seq_puts(m, new_command_line);
- 	seq_putc(m, '\n');
- 	return 0;
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 00e6e03..a6edc28 100644
+index e62a160..a73c4f2 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -21,6 +21,9 @@
  #include <linux/mm_inline.h>
  #include <linux/ctype.h>
  #include <linux/freezer.h>
-+#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP)
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
 +#include <linux/susfs_def.h>
-+#endif
++#endif // #if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
+diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
+index bb5f3e7..00f5980 100644
+--- a/kernel/kallsyms.c
++++ b/kernel/kallsyms.c
+@@ -28,6 +28,9 @@
+ #if defined(CONFIG_SEC_DEBUG)
+ #include <linux/sec_debug.h>
+ #endif
++#ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+ 
+ #include <asm/sections.h>
+ 
 diff --git a/kernel/sys.c b/kernel/sys.c
 index a6246ab..c39b343 100644
 --- a/kernel/sys.c
