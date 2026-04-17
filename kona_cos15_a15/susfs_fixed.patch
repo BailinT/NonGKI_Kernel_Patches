@@ -1,14 +1,46 @@
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 8e03bcc..01aec7e 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -26,6 +26,9 @@
+ #include <linux/bootmem.h>
+ #include <linux/task_work.h>
+ #include <linux/sched/task.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ 
+ #include "pnode.h"
+ #include "internal.h"
+@@ -38,6 +41,17 @@
+ #endif /* CONFIG_OPLUS_MOUNT_BLOCK */
+ #endif /* CONFIG_OPLUS_SECURE_GUARD*/
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern bool susfs_is_sdcard_android_data_decrypted __read_mostly;
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++
++static DEFINE_IDA(susfs_mnt_id_ida);
++static DEFINE_IDA(susfs_mnt_group_ida);
++
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
+ /* Maximum number of mounts in a mount namespace */
+ unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index dd1c260..3249187 100644
+index bd64e5f..2f7a190 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -22,6 +22,9 @@
  #include <linux/mm_inline.h>
  #include <linux/ctype.h>
  #include <linux/sched/signal.h>
-+#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP)
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
 +#include <linux/susfs_def.h>
-+#endif
++#endif // #if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
