@@ -1,5 +1,5 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 1f9b317..75ede36 100644
+index dd2dea2..138ab19 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -27,10 +27,24 @@
@@ -15,7 +15,7 @@ index 1f9b317..75ede36 100644
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +extern bool susfs_is_current_ksu_domain(void);
-+extern bool susfs_is_sdcard_android_data_decrypted;
++extern struct static_key_false susfs_set_sdcard_android_data_decrypted_key_false;
 +
 +#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
 +
@@ -27,108 +27,43 @@ index 1f9b317..75ede36 100644
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -1096,7 +1110,23 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
+@@ -1093,7 +1107,19 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
  		return ERR_PTR(-EINVAL);
  	sb = fc->root->d_sb;
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	// We won't check it anymore if boot-completed stage is triggered.
-+	if (susfs_is_sdcard_android_data_decrypted) {
-+		goto orig_flow;
-+	}
 +	// - We will just stop checking for ksu process if /sdcard/Android is accessible,
 +	//   for the sake of performance
 +	if (!READ_ONCE(susfs_is_sdcard_android_data_decrypted) && susfs_is_current_ksu_domain()) {
 +		mnt = susfs_alloc_non_unshare_ksu_vfsmnt(fc->source ?: "none");
 +		goto bypass_orig_flow;
 +	}
-+orig_flow:
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
  	mnt = alloc_vfsmnt(fc->source ?: "none");
++
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +bypass_orig_flow:
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
  	if (!mnt)
  		return ERR_PTR(-ENOMEM);
  
-@@ -1189,7 +1219,43 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
- 	struct mount *mnt;
- 	int err;
- 
-+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	bool is_mnt_ksu_unshared = false;
-+
-+	// - We will just stop checking for ksu process if /sdcard/Android is accessible,
-+	//   for the sake of performance
-+	if (READ_ONCE(susfs_is_sdcard_android_data_decrypted)) {
-+		goto skip_checking_for_ksu_proc;
-+	}
-+
-+	// - If /sdcard/Android is still not accessible, we keep checking for mounts
-+	//   mounted by ksu process
-+	if (susfs_is_current_ksu_domain()) {
-+		// - If it is unsharing, we re-use the old->mnt_id assign it for mnt->mnt_id directly
-+		//   without going thru ida, but we need to set a bit VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT
-+		//   on mnt->mnt.mnt_flags below, otherwise we find no other ways to identify if this
-+		//   mnt->mnt_id is assigned without ida when it is being freed in mnt_free_id()
-+		if (flag & CL_COPY_MNT_NS) {
-+			mnt = susfs_alloc_unshare_ksu_vfsmnt(old->mnt_devname, old->mnt_id);
-+			is_mnt_ksu_unshared = true;
-+			goto bypass_orig_flow;
-+		}
-+		// else we just go assign fake mnt_id starting with DEFAULT_KSU_MNT_ID
-+		mnt = susfs_alloc_non_unshare_ksu_vfsmnt(old->mnt_devname);
-+		goto bypass_orig_flow;
-+	}
-+skip_checking_for_ksu_proc:
-+	// - We keep checking all processes and if old->mnt_id >= DEFAULT_KSU_MNT_ID,
-+	//   go assign fake mnt_id starting with DEFAULT_KSU_MNT_ID
-+	if (old->mnt_id >= DEFAULT_KSU_MNT_ID) {
-+		mnt = susfs_alloc_non_unshare_ksu_vfsmnt(old->mnt_devname);
-+		goto bypass_orig_flow;
-+	}
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
- 	mnt = alloc_vfsmnt(old->mnt_devname);
-+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+bypass_orig_flow:
-+#endif
- 	if (!mnt)
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -1214,6 +1280,13 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
- 
- 	mnt->mnt.mnt_flags = old->mnt.mnt_flags;
- 	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL);
-+
-+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	if (unlikely(is_mnt_ksu_unshared)) {
-+		mnt->mnt.mnt_flags |= VFSMOUNT_MNT_FLAGS_KSU_UNSHARED_MNT;
-+	}
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+
- 	/* Don't allow unprivileged users to change mount flags */
- 	if (flag & CL_UNPRIVILEGED) {
- 		mnt->mnt.mnt_flags |= MNT_LOCK_ATIME;
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index c7510f9..05cf4e2 100644
+index b21c0fe..0dc0abe 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -1713,6 +1713,18 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+@@ -1710,6 +1710,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 		if (ret)
  			goto out_free;
  		ret = walk_page_range(start_vaddr, end, &pagemap_walk);
- 		mmap_read_unlock(mm);
 +#ifdef CONFIG_KSU_SUSFS_SUS_MAP
 +		vma = find_vma(mm, start_vaddr);
 +		if (vma && vma->vm_file) {
 +			struct inode *inode = file_inode(vma->vm_file);
-+			if (inode->i_mapping &&
-+				unlikely(test_bit(AS_FLAGS_SUS_MAP, &inode->i_mapping->flags) &&
-+				susfs_is_current_proc_umounted_app()))
-+			{
++			if (SUSFS_IS_INODE_SUS_MAP(inode)) {
 +				pm.buffer->pme = 0;
 +			}
 +		}
 +#endif
+ 		mmap_read_unlock(mm);
  		start_vaddr = end;
  
- 		len = min(count, PM_ENTRY_BYTES * pm.pos);
