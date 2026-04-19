@@ -1,5 +1,5 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 1641b37..a5f94fd 100644
+index 765babd..6c26ac0 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -27,6 +27,9 @@
@@ -18,7 +18,7 @@ index 1641b37..a5f94fd 100644
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +extern bool susfs_is_current_ksu_domain(void);
-+extern bool susfs_is_sdcard_android_data_decrypted;
++extern struct static_key_false susfs_set_sdcard_android_data_decrypted_key_false;
 +
 +#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
 +
@@ -30,7 +30,7 @@ index 1641b37..a5f94fd 100644
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -3614,6 +3628,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3613,6 +3627,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
@@ -41,10 +41,10 @@ index 1641b37..a5f94fd 100644
  	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
  #else
 diff --git a/fs/open.c b/fs/open.c
-index 1b0d36b..11d6f5d 100644
+index 1b0d36b..8e2338a 100644
 --- a/fs/open.c
 +++ b/fs/open.c
-@@ -1101,8 +1101,26 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
+@@ -1101,6 +1101,9 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
  		return PTR_ERR(tmp);
  
  	fd = get_unused_fd_flags(flags);
@@ -53,24 +53,29 @@ index 1b0d36b..11d6f5d 100644
 +#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
  	if (fd >= 0) {
  		struct file *f = do_filp_open(dfd, tmp, &op);
-+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+		if (!is_inode_open_redirect && f && !IS_ERR(f)) {
-+			struct inode *inode = file_inode(f);
-+			if (SUSFS_IS_INODE_OPEN_REDIRECT_WITHOUT_UID_CHECK(inode)) {
-+				fake_filename = susfs_open_redirect_spoof_do_sys_openat(inode);
-+				if (fake_filename && !IS_ERR(fake_filename)) {
-+					is_inode_open_redirect = true;
-+					filp_close(f, NULL);
-+					putname(tmp);
-+					tmp = fake_filename;
-+					goto retry;
-+				}
-+			}
-+		}
-+#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
  #ifdef CONFIG_SECURITY_DEFEX
- 		if (!IS_ERR(f) && task_defex_enforce(current, f, -__NR_openat)) {
- 			fput(f);
+@@ -1109,6 +1112,21 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
+ 			f = ERR_PTR(-EPERM);
+ 		}
+ #endif
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++if (!is_inode_open_redirect && f && !IS_ERR(f)) {
++	struct inode *inode = file_inode(f);
++	if (SUSFS_IS_INODE_OPEN_REDIRECT_WITHOUT_UID_CHECK(inode)) {
++		fake_filename = susfs_open_redirect_spoof_do_sys_openat(inode);
++		if (fake_filename && !IS_ERR(fake_filename)) {
++			is_inode_open_redirect = true;
++			filp_close(f, NULL);
++			putname(tmp);
++			tmp = fake_filename;
++			goto retry;
++		}
++	}
++}
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ 		if (IS_ERR(f)) {
+ 			put_unused_fd(fd);
+ 			fd = PTR_ERR(f);
 diff --git a/fs/proc/base.c b/fs/proc/base.c
 index 5dd0f06..2092187 100644
 --- a/fs/proc/base.c
@@ -86,21 +91,23 @@ index 5dd0f06..2092187 100644
  #include <asm/hardwall.h>
  #endif
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
-index 38437f5..4f92782 100644
+index 38437f5..9308c4b 100644
 --- a/fs/proc/cmdline.c
 +++ b/fs/proc/cmdline.c
-@@ -12,8 +12,18 @@ enum {
+@@ -12,8 +12,20 @@ enum {
  
  static char new_command_line[COMMAND_LINE_SIZE];
  
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-+extern int susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
++extern struct static_key_true susfs_set_fake_cmdline_or_bootconfig_key_true;
++extern void susfs_spoof_cmdline_or_bootconfig(struct seq_file *m);
 +#endif
 +
  static int cmdline_proc_show(struct seq_file *m, void *v)
  {
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-+	if (!susfs_spoof_cmdline_or_bootconfig(m)) {
++	if (static_branch_likely(&susfs_set_fake_cmdline_or_bootconfig_key_true)) {
++		susfs_spoof_cmdline_or_bootconfig(m);
 +		seq_putc(m, '\n');
 +		return 0;
 +	}
@@ -137,14 +144,15 @@ index bb5f3e7..f9d676e 100644
  #include <linux/sec_debug.h>
  #endif
 diff --git a/kernel/sys.c b/kernel/sys.c
-index a6246ab..c39b343 100644
+index a6246ab..74517ff 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
-@@ -1196,12 +1196,18 @@ static int override_release(char __user *release, size_t len)
+@@ -1196,12 +1196,20 @@ static int override_release(char __user *release, size_t len)
  	return ret;
  }
  
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++extern struct static_key_true susfs_set_uname_key_true;
 +extern void susfs_spoof_uname(struct new_utsname* tmp);
 +#endif
  SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
@@ -154,7 +162,8 @@ index a6246ab..c39b343 100644
  	down_read(&uts_sem);
  	memcpy(&tmp, utsname(), sizeof(tmp));
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-+	susfs_spoof_uname(&tmp);
++	if (static_branch_likely(&susfs_set_uname_key_true))
++		susfs_spoof_uname(&tmp);
 +#endif
  	if (!strncmp(current->comm, "bpfloader", 9) ||
  	    !strncmp(current->comm, "netbpfload", 10) ||
