@@ -1,0 +1,89 @@
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 489696f72caa..0c64a66f6389 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -27,10 +27,21 @@
+ #include <linux/bootmem.h>
+ #include <linux/task_work.h>
+ #include <linux/sched/task.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ #include <linux/fslog.h>
+ #include "pnode.h"
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
+ /* Maximum number of mounts in a mount namespace */
+ unsigned int sysctl_mount_max __read_mostly = 100000;
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index ec9d8987bc30..c0ecb25f485a 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -21,6 +21,9 @@
+ #include <linux/mm_inline.h>
+ #include <linux/freezer.h>
+ #include <linux/ctype.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
++#include <linux/susfs_def.h>
++#endif // #if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
+ #include <linux/io_record.h>
+ 
+ #include <asm/elf.h>
+
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 71a63786d458..0fd8fad5d92a 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1182,35 +1182,19 @@ static int override_release(char __user *release, size_t len)
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++extern struct static_key_false susfs_is_uname_spoof_buffer_set;
++extern void susfs_spoof_uname(struct new_utsname* tmp);
++#endif
+ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+ {
+ 	struct new_utsname tmp;
+ 
+ 	down_read(&uts_sem);
+ 	memcpy(&tmp, utsname(), sizeof(tmp));
+-#ifndef CONFIG_FAKE_UNAME_NONE
+-	if (!strncmp(current->comm, "bpfloader", 9) ||
+-	    !strncmp(current->comm, "netbpfload", 10) ||
+-	    !strncmp(current->comm, "netd", 4) ||
+-	    !strncmp(current->comm, "uprobestats", 11)) {
+-		if (current_uid().val == 0) {
+-#if defined(CONFIG_FAKE_UNAME_5_4)
+-			strcpy(tmp.release, "5.4.200");
+-#elif defined(CONFIG_FAKE_UNAME_5_10)
+-			strcpy(tmp.release, "5.10.200");
+-#elif defined(CONFIG_FAKE_UNAME_5_15)
+-			strcpy(tmp.release, "5.15.200");
+-#elif defined(CONFIG_FAKE_UNAME_6_1)
+-			strcpy(tmp.release, "6.1.200");
+-#elif defined(CONFIG_FAKE_UNAME_6_6)
+-			strcpy(tmp.release, "6.6.200");
+-#elif defined(CONFIG_FAKE_UNAME_6_12)
+-			strcpy(tmp.release, "6.12.200");
+-#endif
+-			pr_debug("fake uname: %s/%d release=%s\n",
+-				 current->comm, current->pid, tmp.release);
+-		}
+-	}
++#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++	if (static_branch_likely(&susfs_is_uname_spoof_buffer_set))
++		susfs_spoof_uname(&tmp);
+ #endif
+ 	up_read(&uts_sem);
+ 	if (copy_to_user(name, &tmp, sizeof(tmp)))
+		return -EFAULT;
