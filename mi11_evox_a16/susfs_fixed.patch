@@ -1,8 +1,8 @@
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index b6b7d4c..9771c98 100644
+index d5a1687..2ba7dcd 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -387,12 +387,44 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+@@ -387,9 +387,24 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
  	unsigned long start, end;
  	dev_t dev = 0;
  	const char *name = NULL;
@@ -21,37 +21,21 @@ index b6b7d4c..9771c98 100644
 +		}
 +#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 +#ifdef CONFIG_KSU_SUSFS_SUS_MAP
-+		if (SUSFS_IS_INODE_SUS_MAP(inode)) {
-+			seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
-+			seq_put_hex_ll(m, NULL, vma->vm_start, 8);
-+			seq_put_hex_ll(m, "-", vma->vm_end, 8);
-+			seq_putc(m, ' ');
-+			seq_putc(m, '-');
-+			seq_putc(m, '-');
-+			seq_putc(m, '-');
-+			seq_putc(m, 'p');
-+			seq_put_hex_ll(m, " ", pgoff, 8);
-+			seq_put_hex_ll(m, " ", MAJOR(dev), 2);
-+			seq_put_hex_ll(m, ":", MINOR(dev), 2);
-+			seq_put_decimal_ull(m, " ", ino);
-+			seq_putc(m, ' ');
-+			goto done;
-+		}
++		if (SUSFS_IS_INODE_SUS_MAP(inode))
++			return;
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
  		dev = inode->i_sb->s_dev;
  		ino = inode->i_ino;
  		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
+@@ -410,8 +425,14 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+ 		goto bypass;
+             	 	}
+             	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 +		susfs_sus_kstat_spoof_show_map_vma(inode, &dev, &ino);
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-         struct dentry *dentry = file->f_path.dentry;
-         if (dentry) {
-         	const char *path = (const char *)dentry->d_name.name; 
-@@ -411,7 +443,9 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
-             	 	}
-             	}
  	}
--
+ 
 +#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 +orig_flow:
 +#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
@@ -59,25 +43,27 @@ index b6b7d4c..9771c98 100644
  	end = vma->vm_end;
  	show_vma_header_prefix(m, start, end, flags, pgoff, dev, ino);
 diff --git a/kernel/sys.c b/kernel/sys.c
-index eb21538..0e662c2 100644
+index eb21538..96e327a 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
-@@ -1240,6 +1240,9 @@ static int override_release(char __user *release, size_t len)
+@@ -1240,6 +1240,10 @@ static int override_release(char __user *release, size_t len)
  	return ret;
  }
  
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
++extern struct static_key_false susfs_is_uname_spoof_buffer_set;
 +extern void susfs_spoof_uname(struct new_utsname* tmp);
 +#endif
  SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
  {
  	struct new_utsname tmp;
-@@ -1248,6 +1251,9 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+@@ -1248,6 +1252,10 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
  
  	down_read(&uts_sem);
  	memcpy(&tmp, utsname(), sizeof(tmp));
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-+	susfs_spoof_uname(&tmp);
++	if (static_branch_likely(&susfs_is_uname_spoof_buffer_set))
++		susfs_spoof_uname(&tmp);
 +#endif
  	up_read(&uts_sem);
  
