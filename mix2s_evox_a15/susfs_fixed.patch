@@ -31,3 +31,20 @@ index b15b4a4..4f99195 100644
  	rc = security_sid_to_context(state, tsid, &scontext, &scontext_len);
  	if (rc)
  		audit_log_format(ab, " tsid=%d", tsid);
+
+diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
+index f5fe24f..fb725d5 100644
+--- a/security/selinux/selinuxfs.c
++++ b/security/selinux/selinuxfs.c
+@@ -42,6 +42,11 @@
+ #include "objsec.h"
+ #include "conditional.h"
+ 
++#ifdef CONFIG_KSU_SUSFS
++extern struct selinux_state fake_state;
++extern bool ksu_selinux_hide_running __read_mostly;
++#endif // #ifdef CONFIG_KSU_SUSFS
++
+ enum sel_inos {
+ 	SEL_ROOT_INO = 2,
+ 	SEL_LOAD,	/* load policy */
