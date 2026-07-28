@@ -1,14 +1,77 @@
+diff --git a/fs/namei.c b/fs/namei.c
+index bbf1cbb..3a1d10b 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -3828,24 +3828,57 @@ out2:
+ 	mnt_drop_write(path.mnt);
+ out:
+ 	path_put(&path);
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++	if (fake_filename && !IS_ERR(fake_filename))
++		putname(fake_filename);
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ 	return error;
+ }
+ 
+ static int do_o_path(struct nameidata *nd, unsigned flags, struct file *file)
+ {
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++	int old_dfd = nd->dfd;
++	struct filename *fake_filename = NULL;
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ 	struct path path;
+ 	int error = path_lookupat(nd, flags, &path);
+ 	if (!error) {
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++		if (old_dfd != -1 &&
++			SUSFS_IS_INODE_OPEN_REDIRECT_WITHOUT_UID_CHECK(path.dentry->d_inode))
++		{
++			fake_filename = susfs_open_redirect_spoof_do_sys_openat(path.dentry->d_inode);
++			if (fake_filename && !IS_ERR(fake_filename)) {
++				path_put(&path);
++				restore_nameidata();
++				set_nameidata(nd, old_dfd, fake_filename);
++				error = path_lookupat(nd, flags, &path);
++				if (unlikely(error)) {
++					putname(fake_filename);
++					return error;
++				}
++			}
++		}
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ 		audit_inode(nd->name, path.dentry, 0);
+ 		error = vfs_open(&path, file);
+ 		path_put(&path);
+ 	}
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++	if (fake_filename && !IS_ERR(fake_filename))
++		putname(fake_filename);
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ 	return error;
+ }
+ 
+ static struct file *path_openat(struct nameidata *nd,
+ 			const struct open_flags *op, unsigned flags)
+ {
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++	int old_dfd = nd->dfd;
++	struct filename *fake_filename = NULL;
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ 	const char *s;
+ 	struct file *file;
+ 	int opened = 0;
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 489696f..e9e33bd 100644
+index 489696f..d19ba7d 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -28,9 +28,20 @@
+@@ -28,9 +28,21 @@
  #include <linux/task_work.h>
  #include <linux/sched/task.h>
  #include <linux/fslog.h>
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +#include <linux/susfs_def.h>
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
  #include "pnode.h"
  #include "internal.h"
  
@@ -24,7 +87,7 @@ index 489696f..e9e33bd 100644
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 0da5064..3ae7357 100644
+index 7bbefd0..20ff183 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -22,6 +22,9 @@
@@ -38,7 +101,7 @@ index 0da5064..3ae7357 100644
  #include <asm/elf.h>
  #include <asm/tlb.h>
 diff --git a/kernel/sys.c b/kernel/sys.c
-index 71a6378..b323167 100644
+index 71a6378..2386105 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -1182,6 +1182,10 @@ static int override_release(char __user *release, size_t len)
@@ -52,14 +115,14 @@ index 71a6378..b323167 100644
  SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
  {
  	struct new_utsname tmp;
-@@ -1211,6 +1215,10 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
- 				 current->comm, current->pid, tmp.release);
- 		}
- 	}
+@@ -1206,6 +1210,10 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+ 			strcpy(tmp.release, "6.6.200");
+ #elif defined(CONFIG_FAKE_UNAME_6_12)
+ 			strcpy(tmp.release, "6.12.200");
 +#endif
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 +	if (static_branch_likely(&susfs_is_uname_spoof_buffer_set))
 +		susfs_spoof_uname(&tmp);
  #endif
- 	up_read(&uts_sem);
- 	if (copy_to_user(name, &tmp, sizeof(tmp)))
+ 			pr_debug("fake uname: %s/%d release=%s\n",
+ 				 current->comm, current->pid, tmp.release);

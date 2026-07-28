@@ -1,5 +1,5 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 765babd..6c26ac0 100644
+index ad1e4c3..31fdf0a 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -27,6 +27,9 @@
@@ -12,7 +12,7 @@ index 765babd..6c26ac0 100644
  
  #ifdef CONFIG_KDP_NS
  #include <linux/kdp.h>
-@@ -35,6 +38,17 @@
+@@ -35,6 +38,14 @@
  #include "pnode.h"
  #include "internal.h"
  
@@ -22,15 +22,12 @@ index 765babd..6c26ac0 100644
 +
 +#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
 +
-+static DEFINE_IDA(susfs_mnt_id_ida);
-+static DEFINE_IDA(susfs_mnt_group_ida);
-+
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -3613,6 +3627,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3593,6 +3604,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
@@ -40,58 +37,22 @@ index 765babd..6c26ac0 100644
  #ifdef CONFIG_KDP_NS
  	new = copy_tree(old, old->mnt->mnt_root, copy_flags);
  #else
-diff --git a/fs/open.c b/fs/open.c
-index 1b0d36b..8e2338a 100644
---- a/fs/open.c
-+++ b/fs/open.c
-@@ -1101,6 +1101,9 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
- 		return PTR_ERR(tmp);
- 
- 	fd = get_unused_fd_flags(flags);
-+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+retry:
-+#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
- 	if (fd >= 0) {
- 		struct file *f = do_filp_open(dfd, tmp, &op);
- #ifdef CONFIG_SECURITY_DEFEX
-@@ -1109,6 +1112,21 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
- 			f = ERR_PTR(-EPERM);
- 		}
- #endif
-+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+if (!is_inode_open_redirect && f && !IS_ERR(f)) {
-+	struct inode *inode = file_inode(f);
-+	if (SUSFS_IS_INODE_OPEN_REDIRECT_WITHOUT_UID_CHECK(inode)) {
-+		fake_filename = susfs_open_redirect_spoof_do_sys_openat(inode);
-+		if (fake_filename && !IS_ERR(fake_filename)) {
-+			is_inode_open_redirect = true;
-+			filp_close(f, NULL);
-+			putname(tmp);
-+			tmp = fake_filename;
-+			goto retry;
-+		}
-+	}
-+}
-+#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
- 		if (IS_ERR(f)) {
- 			put_unused_fd(fd);
- 			fd = PTR_ERR(f);
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 5dd0f06..2092187 100644
+index e5980d8..85bcf23 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -96,6 +96,9 @@
- #include <linux/cpufreq_times.h>
- #include <linux/task_integrity.h>
- #include <linux/proca.h>
-+#if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
-+#include <linux/susfs_def.h>
-+#endif
- #ifdef CONFIG_HARDWALL
+@@ -100,6 +100,9 @@
  #include <asm/hardwall.h>
  #endif
+ #include <trace/events/oom.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
++#include <linux/susfs_def.h>
++#endif // #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
+ #include "internal.h"
+ #include "fd.h"
+ 
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
-index 38437f5..9308c4b 100644
+index 38437f5..af338eb 100644
 --- a/fs/proc/cmdline.c
 +++ b/fs/proc/cmdline.c
 @@ -12,8 +12,20 @@ enum {
@@ -116,38 +77,38 @@ index 38437f5..9308c4b 100644
  	seq_putc(m, '\n');
  	return 0;
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index e62a160..a73c4f2 100644
+index 604e244..a69c6ae 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -21,6 +21,9 @@
- #include <linux/mm_inline.h>
- #include <linux/ctype.h>
- #include <linux/freezer.h>
+@@ -25,6 +25,9 @@
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
+ #include <asm/tlbflush.h>
 +#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
 +#include <linux/susfs_def.h>
 +#endif // #if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
+ #include "internal.h"
  
- #include <asm/elf.h>
- #include <asm/tlb.h>
+ #ifdef CONFIG_ZRAM_LRU_WRITEBACK
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
-index bb5f3e7..f9d676e 100644
+index bb5f3e7..fc7088f 100644
 --- a/kernel/kallsyms.c
 +++ b/kernel/kallsyms.c
-@@ -25,6 +25,9 @@
- #include <linux/slab.h>
- #include <linux/filter.h>
- #include <linux/compiler.h>
+@@ -30,6 +30,9 @@
+ #endif
+ 
+ #include <asm/sections.h>
 +#ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
 +#include <linux/susfs_def.h>
 +#endif // #ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
- #if defined(CONFIG_SEC_DEBUG)
- #include <linux/sec_debug.h>
- #endif
+ 
+ #ifdef CONFIG_KALLSYMS_ALL
+ #define all_var 1
 diff --git a/kernel/sys.c b/kernel/sys.c
-index a6246ab..74517ff 100644
+index a6246ab..2a07982 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
-@@ -1196,12 +1196,20 @@ static int override_release(char __user *release, size_t len)
+@@ -1196,6 +1196,10 @@ static int override_release(char __user *release, size_t len)
  	return ret;
  }
  
@@ -158,13 +119,14 @@ index a6246ab..74517ff 100644
  SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
  {
  	struct new_utsname tmp;
- 
- 	down_read(&uts_sem);
- 	memcpy(&tmp, utsname(), sizeof(tmp));
+@@ -1211,6 +1215,10 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
+ 				 current->comm, current->pid, tmp.release);
+ 		}
+ 	}
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 +	if (static_branch_likely(&susfs_is_uname_spoof_buffer_set))
 +		susfs_spoof_uname(&tmp);
 +#endif
- 	if (!strncmp(current->comm, "bpfloader", 9) ||
- 	    !strncmp(current->comm, "netbpfload", 10) ||
- 	    !strncmp(current->comm, "netd", 4)) {
+ 	up_read(&uts_sem);
+ 	if (copy_to_user(name, &tmp, sizeof(tmp)))
+ 		return -EFAULT;
