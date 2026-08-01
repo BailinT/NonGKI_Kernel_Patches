@@ -1,5 +1,5 @@
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index e913b43..2f8ccb6 100644
+index 1ff4623..17376ee 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -19,6 +19,9 @@
@@ -12,38 +12,6 @@ index e913b43..2f8ccb6 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-@@ -902,6 +905,12 @@ static int show_smap(struct seq_file *m, void *v)
- 		seq_putc(m, '\n');
- 	}
- 
-+#ifdef CONFIG_KSU_SUSFS_SUS_MAP
-+	if (vma->vm_file) {
-+		if (SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file)))
-+			return 0;
-+	}
-+#endif
- 	seq_printf(m,
- 		   "Size:           %8lu kB\n"
- 		   "KernelPageSize: %8lu kB\n"
-@@ -912,9 +921,18 @@ static int show_smap(struct seq_file *m, void *v)
- 
- 	__show_smap(m, &mss);
- 
-+#ifdef CONFIG_KSU_SUSFS_SUS_MAP
-+	if (vma->vm_file) {
-+		if (vma->vm_file && SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file)))
-+			goto bypass_orig_flow;
-+	}
-+#endif
- 	arch_show_smap(m, vma);
- 	show_smap_vma_flags(m, vma);
- 
-+#ifdef CONFIG_KSU_SUSFS_SUS_MAP
-+bypass_orig_flow:
-+#endif
- 	m_cache_vma(m, vma);
- 
- 	return 0;
 diff --git a/kernel/sys.c b/kernel/sys.c
 index b276a5e..898dbf1 100644
 --- a/kernel/sys.c
@@ -70,6 +38,3 @@ index b276a5e..898dbf1 100644
  	up_read(&uts_sem);
  	if (copy_to_user(name, &tmp, sizeof(tmp)))
  		return -EFAULT;
-diff --git a/susfs_fixed.patch b/susfs_fixed.patch
-new file mode 100644
-index 0000000..e69de29
