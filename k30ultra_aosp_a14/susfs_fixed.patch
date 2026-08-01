@@ -1,5 +1,5 @@
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 1ff4623..17376ee 100644
+index 1ff4623..e727c74 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -19,6 +19,9 @@
@@ -12,6 +12,15 @@ index 1ff4623..17376ee 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
+@@ -815,7 +818,7 @@ static void smap_gather_stats(struct vm_area_struct *vma,
+ 
+ #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+ 	if (vma->vm_file && SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file)))
+-		return 0;
++		return;
+ #endif
+ 
+ 	smaps_walk.private = mss;
 diff --git a/kernel/sys.c b/kernel/sys.c
 index b276a5e..898dbf1 100644
 --- a/kernel/sys.c
