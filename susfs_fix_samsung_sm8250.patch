@@ -1,0 +1,145 @@
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\orig\\fs\\Makefile" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\new\\fs\\Makefile"
+index 69f81a8..bc3867a 100644
+--- a/fs/Makefile
++++ b/fs/Makefile
+@@ -15,6 +15,8 @@ obj-y :=	open.o read_write.o file_table.o super.o \
+ 		stack.o fs_struct.o statfs.o fs_pin.o nsfs.o \
+ 		fs_context.o fs_parser.o
+ 
++obj-$(CONFIG_KSU_SUSFS) += susfs.o
++
+ ifeq ($(CONFIG_BLOCK),y)
+ obj-y +=	buffer.o block_dev.o direct-io.o mpage.o
+ else
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\orig\\fs\\namespace.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\new\\fs\\namespace.c"
+index f142021..f166ec3 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -26,12 +26,23 @@
+ #include <linux/bootmem.h>
+ #include <linux/task_work.h>
+ #include <linux/sched/task.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ #include <linux/fs_context.h>
+ #include <linux/fslog.h>
+ 
+ #include "pnode.h"
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
+ /* Maximum number of mounts in a mount namespace */
+ unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
+@@ -1150,7 +1161,22 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
+ 		return ERR_PTR(-EINVAL);
+ 	sb = fc->root->d_sb;
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	// - We will just stop checking for ksu process if /sdcard/Android is accessible,
++	//   for the sake of performance
++	if (static_branch_unlikely(&susfs_is_sdcard_android_data_not_decrypted)) {
++		if (susfs_is_current_ksu_domain()) {
++			mnt = susfs_alloc_non_unshare_ksu_vfsmnt(fc->source ?: "none");
++			goto bypass_orig_flow;
++		}
++	}
++#endif
++
+ 	mnt = alloc_vfsmnt(fc->source ?: "none");
++
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++bypass_orig_flow:
++#endif
+ 	if (!mnt)
+ 		return ERR_PTR(-ENOMEM);
+ 
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\orig\\fs\\proc\\base.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\new\\fs\\proc\\base.c"
+index 7b48270..e8c4d60 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -95,6 +95,9 @@
+ #include <linux/flex_array.h>
+ #include <linux/posix-timers.h>
+ #include <linux/cpufreq_times.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
++#include <linux/susfs_def.h>
++#endif // #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
+ #include <linux/cn_proc.h>
+ #include <trace/events/oom.h>
+ #include "internal.h"
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\orig\\fs\\proc\\task_mmu.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\new\\fs\\proc\\task_mmu.c"
+index e3e33ec..a93716d 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -22,6 +22,9 @@
+ #include <linux/mm_inline.h>
+ #include <linux/freezer.h>
+ #include <linux/ctype.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
++#include <linux/susfs_def.h>
++#endif // #if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
+ 
+ #include <asm/elf.h>
+ #include <asm/tlb.h>
+@@ -1709,7 +1712,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 		ret = mmap_read_lock_killable(mm);
+ 		if (ret)
+ 			goto out_free;
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		vma = find_vma(mm, start_vaddr);
++		if (vma && vma->vm_file && SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file)))
++			goto bypass_orig_flow;
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+ 		ret = walk_page_range(start_vaddr, end, &pagemap_walk);
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++bypass_orig_flow:
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+ 		mmap_read_unlock(mm);
+ 		start_vaddr = end;
+ 
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\orig\\mm\\memory.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\gts7_fix_work\\new\\mm\\memory.c"
+index f310326..dbd3f9e 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -80,6 +80,10 @@
+ #include <asm/tlbflush.h>
+ #include <linux/pgtable.h>
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
++
+ #include "internal.h"
+ 
+ #if defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS) && !defined(CONFIG_COMPILE_TEST)
+@@ -4487,12 +4491,21 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+ 	if (mmap_read_lock_killable(mm))
+ 		return 0;
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++	vma = find_vma(mm, addr);
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
++
+ 	/* ignore errors, just check how much was successfully transferred */
+ 	while (len) {
+ 		int bytes, ret, offset;
+ 		void *maddr;
+ 		struct page *page = NULL;
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		if (vma && vma->vm_file && SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file)))
++			break;
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
++
+ 		ret = get_user_pages_remote(tsk, mm, addr, 1,
+ 				gup_flags, &page, &vma, NULL);
+ 		if (ret <= 0) {
