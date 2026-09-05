@@ -1,0 +1,32 @@
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_nubia_fx\\orig\\fs\\Makefile" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_nubia_fx\\new\\fs\\Makefile"
+index 5b5471f..9cd4209 100644
+--- a/fs/Makefile
++++ b/fs/Makefile
+@@ -17,6 +17,8 @@ obj-y :=	open.o read_write.o file_table.o super.o \
+ 		stack.o fs_struct.o statfs.o fs_pin.o nsfs.o \
+ 		fs_types.o fs_context.o fs_parser.o fsopen.o
+ 
++obj-$(CONFIG_KSU_SUSFS) += susfs.o
++
+ ifeq ($(CONFIG_BOARD_NUBIA),y)
+ obj-y += fsobserver.o
+ endif
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_nubia_fx\\orig\\fs\\namei.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_nubia_fx\\new\\fs\\namei.c"
+index 5305e3f..d8358ce 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -55,6 +55,14 @@
+ #include "fsobserver.h"
+ // Nubia FileObserver End
+ #endif
++
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++extern bool susfs_is_inode_sus_path(struct inode *inode);
++extern const struct qstr susfs_fake_qstr_name;
++#endif
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++extern struct filename *susfs_open_redirect_spoof_do_sys_openat(struct inode *inode);
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+ /* [Feb-1997 T. Schoebel-Theuer]
+  * Fundamental changes in the pathname lookup mechanisms (namei)
+  * were necessary because of omirr.  The reason is that omirr needs
