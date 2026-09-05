@@ -1,0 +1,56 @@
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx3\\orig\\fs\\namei.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx3\\new\\fs\\namei.c"
+index e089fb2..82ea92d 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -43,10 +43,27 @@
+ #include <linux/oem/fsc.h>
+ #endif
+ #include <linux/build_bug.h>
++#if defined(CONFIG_KSU_SUSFS_SUS_PATH) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include "internal.h"
+ #include "mount.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++extern bool susfs_is_inode_sus_path(struct inode *inode);
++extern const struct qstr susfs_fake_qstr_name;
++#endif
++#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++extern struct filename *susfs_open_redirect_spoof_do_sys_openat(struct inode *inode);
++#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
++
++/* BailinT: 4.19.81 老树缺 susfs 假定的新枚举，补定义（树内无赋值点，检测恒 false，仅编译兼容） */
++#ifndef ND_STATE_LOOKUP_LAST
++#define ND_STATE_LOOKUP_LAST (1 << 0)
++#define ND_STATE_OPEN_LAST (1 << 1)
++#endif
++
+ /* [Feb-1997 T. Schoebel-Theuer]
+  * Fundamental changes in the pathname lookup mechanisms (namei)
+  * were necessary because of omirr.  The reason is that omirr needs
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx3\\orig\\fs\\readdir.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx3\\new\\fs\\readdir.c"
+index 73b1465..2de94a2 100644
+--- a/fs/readdir.c
++++ b/fs/readdir.c
+@@ -220,6 +220,9 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
+ 	unsigned long d_ino;
+ 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
+ 		sizeof(long));
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	struct inode *inode;
++#endif
+ 
+ 	buf->error = -EINVAL;	/* only used if we fail.. */
+ 	if (reclen > buf->count)
+@@ -342,6 +345,9 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
+ 		container_of(ctx, struct getdents_callback64, ctx);
+ 	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
+ 		sizeof(u64));
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	struct inode *inode;
++#endif
+ 
+ 	buf->error = -EINVAL;	/* only used if we fail.. */
+ 	if (reclen > buf->count)
