@@ -1,5 +1,5 @@
-diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx\\orig\\fs\\namespace.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx\\new\\fs\\namespace.c"
-index 75f1edc..e28a7be 100644
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx2\\orig\\fs\\namespace.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx2\\new\\fs\\namespace.c"
+index 75f1edc..77a129f 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -30,6 +30,9 @@
@@ -8,7 +8,7 @@ index 75f1edc..e28a7be 100644
  #include <linux/shmem_fs.h>
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +#include <linux/susfs_def.h>
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#endif
  
  #include "pnode.h"
  #include "internal.h"
@@ -30,4 +30,17 @@ index 75f1edc..e28a7be 100644
 +
  /* Maximum number of mounts in a mount namespace */
  unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx2\\orig\\fs\\proc\\task_mmu.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx2\\new\\fs\\proc\\task_mmu.c"
+index 116dc7d..5a246fd 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -927,7 +927,7 @@ static int show_smap(struct seq_file *m, void *v)
+ #ifdef CONFIG_KSU_SUSFS_SUS_MAP
+ 	if (vma->vm_file) {
+ 		if (SUSFS_IS_INODE_SUS_MAP(file_inode(vma->vm_file)))
+-			return;
++			return 0;
+ 	}
+ #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
  
