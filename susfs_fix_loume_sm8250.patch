@@ -1,0 +1,27 @@
+diff --git "a/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx\\orig\\fs\\namespace.c" "b/C:\\Users\\29907\\Desktop\\Ai\\GKI\\_tools\\research\\_fx\\new\\fs\\namespace.c"
+index 5cc4d3b..2fa79bc 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -26,10 +26,22 @@
+ #include <linux/bootmem.h>
+ #include <linux/task_work.h>
+ #include <linux/sched/task.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ 
+ #include "pnode.h"
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
++
+ #ifdef CONFIG_OPLUS_SECURE_GUARD
+ #ifdef CONFIG_OPLUS_MOUNT_BLOCK
+ #ifdef CONFIG_OPLUS_KEVENT_UPLOAD
