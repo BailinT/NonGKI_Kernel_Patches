@@ -97,7 +97,7 @@ index 73b1465..2de94a2 100644
 +out_kfree:
 +			kfree(pathname);
 +		}
-+orig_flow:
++orig_flow: ;
 +#endif
  		/*
  		 * IN_ALL_EVENTS represents all of the mask bits
