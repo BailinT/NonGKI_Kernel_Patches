@@ -94,6 +94,18 @@
  #define trace_android_rvh_check_preempt_wakeup(p, ignore)
  #define trace_android_rvh_check_preempt_tick(p, ideal_runtime)
 
+--- a/include/trace/hooks/vh_af_packet.h
++++ b/include/trace/hooks/vh_af_packet.h
+@@ -25,7 +25,7 @@
+ 		int *do_drop),
+ 	TP_ARGS(sk, skb, dev, pt, do_drop));
+ #else
+-#define android_vh_check_dhcp_pkt(sk, skb, dev, pt, do_drop)
++#define trace_android_vh_check_dhcp_pkt(sk, skb, dev, pt, do_drop)
+ #endif
+ #endif /* _TRACE_HOOK_AF_PACKET_H */
+ /* This part must be outside protection */
+
 --- a/kernel/taskstats.c
 +++ b/kernel/taskstats.c
 @@ -466,7 +466,7 @@
@@ -105,3 +117,15 @@
  static void sysstats_fill_zoneinfo(struct sys_memstats *stats)
  {
  }
+
+--- a/arch/arm64/configs/defconfig
++++ b/arch/arm64/configs/defconfig
+@@ -703,7 +703,7 @@
+ CONFIG_TI_SCI_CLK=y
+ CONFIG_COMMON_CLK_QCOM=y
+ CONFIG_QCOM_A53PLL=y
+-CONFIG_QCOM_CLK_APCS_MSM8916=y
++# CONFIG_QCOM_CLK_APCS_MSM8916 is not set
+ CONFIG_QCOM_CLK_SMD_RPM=y
+ CONFIG_QCOM_CLK_RPMH=y
+ CONFIG_IPQ_GCC_8074=y
