@@ -20,6 +20,7 @@
 
 #include <linux/devfreq.h>
 #include <linux/devfreq_cooling.h>
+#include <linux/string.h>
 #include <linux/export.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
@@ -133,6 +134,11 @@ static int devfreq_cooling_get_cur_state(struct thermal_cooling_device *cdev,
 static int devfreq_cooling_set_cur_state(struct thermal_cooling_device *cdev,
 					 unsigned long state)
 {
+	struct devfreq_cooling_device *dfc = cdev->devdata;
+	struct devfreq *df = dfc->devfreq;
+	struct device *dev = df->dev.parent;
+	int ret;
+
 	/* [odin-custom] per-mode gpu cooling policy (odin_mode): while a cap
 	 * request is ignored, translate it into a release so stale thermal
 	 * caps do not linger after a mode switch. */
@@ -143,11 +149,6 @@ static int devfreq_cooling_set_cur_state(struct thermal_cooling_device *cdev,
 			devfreq_cooling_set_cur_state(cdev, 0);
 		return 0;
 	}
-
-	struct devfreq_cooling_device *dfc = cdev->devdata;
-	struct devfreq *df = dfc->devfreq;
-	struct device *dev = df->dev.parent;
-	int ret;
 
 	if (state == dfc->cooling_state)
 		return 0;
