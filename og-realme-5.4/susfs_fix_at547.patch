@@ -129,7 +129,7 @@
  CONFIG_QCOM_CLK_SMD_RPM=y
  CONFIG_QCOM_CLK_RPMH=y
  CONFIG_IPQ_GCC_8074=y
-@@ -850,6 +850,32 @@
+@@ -850,6 +850,35 @@
  CONFIG_NLS_CODEPAGE_437=y
  CONFIG_NLS_ISO8859_1=y
  CONFIG_SECURITY=y
@@ -145,7 +145,10 @@
 +CONFIG_OPLUS_FEATURE_OPROJECT=y
 +CONFIG_DRM=y
 +CONFIG_DRM_PANEL=y
-+CONFIG_DRM_MSM=y
++# BailinT: DRM_MSM 关闭——lunaa=yupik(SM7325) 无对应 disp conf（techpack/display/config 只有 kona/lahaina/holi/lito/bengal/monaco 段），显示主体本就不编；开 =y 反而拉两套 msm 骨架（drivers/gpu/drm/msm + techpack/display/msm）有重复定义风险
++# CONFIG_DRM_MSM is not set
++# BailinT: techpack/display/msm/Makefile 的 obj-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o 是死条目（msm_fbdev.c 不在树上），qgki 官方也关
++# CONFIG_DRM_FBDEV_EMULATION is not set
 +CONFIG_TOUCHPANEL_OPLUS=y
 +CONFIG_TOUCHPANEL_NOTIFY=y
 +CONFIG_TOUCHPANEL_ALGORITHM=y
