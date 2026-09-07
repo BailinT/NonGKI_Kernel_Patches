@@ -129,3 +129,35 @@
  CONFIG_QCOM_CLK_SMD_RPM=y
  CONFIG_QCOM_CLK_RPMH=y
  CONFIG_IPQ_GCC_8074=y
+@@ -850,6 +850,9 @@
+ CONFIG_NLS_CODEPAGE_437=y
+ CONFIG_NLS_ISO8859_1=y
+ CONFIG_SECURITY=y
++# BailinT: kernelsu selinux 集成依赖（r14 同款）
++CONFIG_SECURITY_SELINUX=y
++CONFIG_SECURITY_NETWORK=y
+ CONFIG_CRYPTO_ECHAINIV=y
+ CONFIG_CRYPTO_ANSI_CPRNG=y
+ CONFIG_DMA_CMA=y
+
+--- a/net/mac80211/Makefile
++++ b/net/mac80211/Makefile
+@@ -53,14 +53,9 @@
+ 
+ CFLAGS_trace.o := -I$(src)
+ 
+-rc80211_minstrel-y := \
+-	rc80211_minstrel.o \
+-	rc80211_minstrel_ht.o
+-
+-rc80211_minstrel-$(CONFIG_MAC80211_DEBUGFS) += \
+-	rc80211_minstrel_debugfs.o \
+-	rc80211_minstrel_ht_debugfs.o
+-
+-mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)
++mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += rc80211_minstrel.o
++mac80211-$(CONFIG_MAC80211_RC_MINSTREL_HT) += rc80211_minstrel_ht.o
++mac80211-$(CONFIG_MAC80211_RC_MINSTREL_DEBUGFS) += rc80211_minstrel_debugfs.o
++mac80211-$(CONFIG_MAC80211_RC_MINSTREL_HT_DEBUGFS) += rc80211_minstrel_ht_debugfs.o
+ 
+ ccflags-y += -DDEBUG
