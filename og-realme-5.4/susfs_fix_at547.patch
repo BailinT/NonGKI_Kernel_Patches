@@ -206,7 +206,7 @@
 
 --- a/techpack/display/Makefile
 +++ b/techpack/display/Makefile
-@@ -29,6 +29,13 @@
+@@ -29,6 +29,18 @@
       endif
  endif
  
@@ -215,6 +215,11 @@
 +LINUXINCLUDE    += -include $(srctree)/techpack/display/config/holidispconf.h
 +export CONFIG_DRM_OPLUS=y
 +export CONFIG_DRM_OPLUS_NOTIFY=y
++export CONFIG_V4L2_MEM2MEM_DEV=y
++export CONFIG_VIDEOBUF2_CORE=y
++export CONFIG_VIDEOBUF2_V4L2=y
++export CONFIG_VIDEOBUF2_MEMOPS=y
++export CONFIG_VIDEOBUF2_DMA_CONTIG=y
 +endif
 +
  LINUXINCLUDE    += \
@@ -233,3 +238,15 @@
  #endif
  obj-$(CONFIG_DRM_TEGRA) += tegra/
  obj-$(CONFIG_DRM_STM) += stm/
+
+--- a/techpack/display/config/holidispconf.h
++++ b/techpack/display/config/holidispconf.h
+@@ -17,3 +17,8 @@
+ #define CONFIG_DRM_OPLUS 1
+ #define CONFIG_DRM_OPLUS_NOTIFY 1
+ //#endif
++#define CONFIG_V4L2_MEM2MEM_DEV 1
++#define CONFIG_VIDEOBUF2_CORE 1
++#define CONFIG_VIDEOBUF2_V4L2 1
++#define CONFIG_VIDEOBUF2_MEMOPS 1
++#define CONFIG_VIDEOBUF2_DMA_CONTIG 1
