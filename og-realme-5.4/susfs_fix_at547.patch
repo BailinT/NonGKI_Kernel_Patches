@@ -129,7 +129,7 @@
  CONFIG_QCOM_CLK_SMD_RPM=y
  CONFIG_QCOM_CLK_RPMH=y
  CONFIG_IPQ_GCC_8074=y
-@@ -850,6 +850,41 @@
+@@ -850,6 +850,42 @@
  CONFIG_NLS_CODEPAGE_437=y
  CONFIG_NLS_ISO8859_1=y
  CONFIG_SECURITY=y
@@ -143,6 +143,7 @@
 +CONFIG_DST_CACHE=y
 +CONFIG_QCOM_SCM=y
 +CONFIG_OPLUS_FEATURE_OPROJECT=y
++CONFIG_ARCH_YUPIK=y
 +CONFIG_DRM=y
 +CONFIG_DRM_PANEL=y
 +# BailinT: DRM_MSM 关闭——lunaa=yupik(SM7325) 无对应 disp conf（techpack/display/config 只有 kona/lahaina/holi/lito/bengal/monaco 段），显示主体本就不编；开 =y 反而拉两套 msm 骨架（drivers/gpu/drm/msm + techpack/display/msm）有重复定义风险
@@ -193,3 +194,18 @@
 +mac80211-$(CONFIG_MAC80211_DEBUGFS) += rc80211_minstrel_ht_debugfs.o
  
  ccflags-y += -DDEBUG
+
+--- a/techpack/display/Makefile
++++ b/techpack/display/Makefile
+@@ -29,6 +29,11 @@
+      endif
+ endif
+ 
++ifeq ($(CONFIG_ARCH_YUPIK), y)
++     include $(srctree)/techpack/display/config/holidisp.conf
++LINUXINCLUDE    += -include $(srctree)/techpack/display/config/holidispconf.h
++endif
++
+ LINUXINCLUDE    += \
+ 		   -I$(srctree)/techpack/display/include/uapi/display \
+ 		   -I$(srctree)/techpack/display/include
