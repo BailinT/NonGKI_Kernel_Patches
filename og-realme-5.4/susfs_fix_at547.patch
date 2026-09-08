@@ -209,3 +209,16 @@
  LINUXINCLUDE    += \
  		   -I$(srctree)/techpack/display/include/uapi/display \
  		   -I$(srctree)/techpack/display/include
+
+--- a/drivers/gpu/drm/Makefile
++++ b/drivers/gpu/drm/Makefile
+@@ -95,7 +95,8 @@
+ obj-$(CONFIG_DRM_BOCHS) += bochs/
+ obj-$(CONFIG_DRM_VIRTIO_GPU) += virtio/
+ #ifdef VENDOR_EDIT
+-obj-$(CONFIG_DRM_MSM) += msm/
++# BailinT: 骨架让位——display 真身在 techpack/display/msm（msm_drm），两套 msm_gem_* 全局符号冲突
++# obj-$(CONFIG_DRM_MSM) += msm/
+ #endif
+ obj-$(CONFIG_DRM_TEGRA) += tegra/
+ obj-$(CONFIG_DRM_STM) += stm/
