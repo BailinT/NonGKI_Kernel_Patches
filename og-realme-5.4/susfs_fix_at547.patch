@@ -282,3 +282,15 @@
 +obj-y += videobuf2-dma-contig.o
  obj-$(CONFIG_VIDEOBUF2_DMA_SG) += videobuf2-dma-sg.o
  obj-$(CONFIG_VIDEOBUF2_DVB) += videobuf2-dvb.o
+
+--- a/techpack/camera/Makefile
++++ b/techpack/camera/Makefile
+@@ -36,6 +36,8 @@
+ 
+ ifeq ($(CONFIG_ARCH_YUPIK), y)
+ include $(srctree)/techpack/camera/config/yupikcamera.conf
++export CONFIG_SPECTRA_OPLUS=y
++export OPLUS_FEATURE_CAMERA_COMMON=y
+ endif
+ 
+ ifeq ($(CONFIG_ARCH_KONA), y)
